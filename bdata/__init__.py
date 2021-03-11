@@ -1,7 +1,8 @@
-from bdata.bdata import bdata, life
-from bdata.bjoined import bjoined
-from bdata.bmerged import bmerged
-from bdata.exceptions import InputError, MinimizationError
+from .bdata import bdata
+from .life import life
+from .bjoined import bjoined
+from .bmerged import bmerged
+from .exceptions import InputError, MinimizationError
 
 import os
 
