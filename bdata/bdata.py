@@ -1176,15 +1176,16 @@ class bdata(mdata):
         
         # weighted mean
         for i in np.arange(0, lenx, rebin):
-            w = 1./dx[i:i+rebin-1]**2
+            w = 1./dx[i:i+rebin]**2
             wsum = np.sum(w)
             
             if wsum == 0:
-                x_rebin.append(np.mean(x[i:i+rebin-1]))
-                dx_rebin.append(np.std(x[i:i+rebin-1]))
+                x_rebin.append(np.mean(x[i:i+rebin]))
+                dx_rebin.append(np.std(x[i:i+rebin]))
             else:
-                x_rebin.append(np.sum(x[i:i+rebin-1]*w)/wsum)
+                x_rebin.append(np.sum(x[i:i+rebin]*w)/wsum)
                 dx_rebin.append(1./wsum**0.5)
+                
         return np.array([x_rebin, dx_rebin])
                  
     # ======================================================================= #
@@ -1474,7 +1475,7 @@ class bdata(mdata):
             if rebin > 1:
                 len_t = len(time)
                 new_t_idx = np.arange(0, len_t, rebin)
-                new_time = (np.average(time[i:i+rebin-1]) for i in new_t_idx)
+                new_time = (np.average(time[i:i+rebin]) for i in new_t_idx)
                 time = np.fromiter(new_time, dtype=float, count=len(new_t_idx))
 
             # mode switching
