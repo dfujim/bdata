@@ -24,7 +24,7 @@ in the analysis of β-NMR and β-NQR data. [bdata] has been written to fullfill 
 
 * Provide an intuitive means of interfacing with [MUD] files in [Python].
 * Fetch missing local data from the [archive]. 
-* Support analyses by providing common data manipulations, such as calculting 
+* Support analyses by providing common data manipulations, such as calculating 
 asymmetries or combining scans. 
 
 ## [Contents](https://github.com/dfujim/bdata/wiki)
