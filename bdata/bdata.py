@@ -8,7 +8,7 @@ import numpy as np
 import pandas as pd
 import os, glob
 import datetime, warnings, requests
-from .exceptions import MinimizationError, InputError
+from .exceptions import MinimizationError, InputError, DkeyWarning, IOWarning
 from .containers import hdict, vdict
 
 from mudpy import mdata
@@ -556,7 +556,7 @@ class bdata(mdata):
                 warnings.warn('Run %d (%d) not found '% (run_number, year)+\
                               'locally. Fetched and saved to %s '%directory+\
                               'from musr.ca.', 
-                              category=Warning)
+                              category=IOWarning)
                         
         # Open and read file
         super().__init__(filename)
@@ -586,7 +586,7 @@ class bdata(mdata):
                 if title not in bdata.dkeys.keys():
                         message = '%d.%d: "%s" not found in dkeys ("%s").'
                         message = message % (self.year, self.run, v.title, v.description)
-                        warnings.warn(message, Warning, stacklevel=2)
+                        warnings.warn(message, DkeyWarning, stacklevel=2)
             
         # Fix attributes for old runs
         if year < 2005:
