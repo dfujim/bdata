@@ -576,6 +576,8 @@ class bdata(mdata):
                 if 'PPG' in v.title:
                     title = v.title.split("/")[-1].lower()
                     self.ppg[bdata.dkeys.get(title, title)] = v
+                elif v.title == "":
+                    pass
                 elif v.title[0] == "/":
                     title = v.title.lower()
                     self.camp[bdata.dkeys.get(title, title)] = v
@@ -1392,14 +1394,14 @@ class bdata(mdata):
             
             # split into parts
             hist_select_temp = []
-            for histname in hist_select.split(', '):
-                hist_select_temp.extend(histname.split(';'))
+            for histname in hist_select.split(','):
+                hist_select_temp.extend(histname.strip().split(';'))
             hist_select = [h.strip() for h in hist_select_temp]
             
             # check for user error
             if len(hist_select) < 4:
                 raise InputError('hist_select must be a string of at least '+\
-                        'four [, ]-seperated or [;]-seperated histogram names')
+                        'four [,]-seperated or [;]-seperated histogram names')
             
             # get data
             d = [self.hist[h].data for h in hist_select]
