@@ -141,9 +141,17 @@ class bdata(mdata):
             "Custom var enabled"                :"customv_enable", 
             "Custom var read name"              :"customv_name_read",    
             "Custom var write name"             :"customv_name_write",    
-            "Start custom scan"                 :"customv_scan_start",    
-            "Stop custom scan"                  :"customv_scan_stop",    
-            "Custom Increment"                  :"customv_scan_incr", 
+            "Start custom scan"                 :"scan_start",    
+            "Stop custom scan"                  :"scan_stop",    
+            "Custom Increment"                  :"scan_incr", 
+            
+            "scan start"                        :"scan_start",
+            "scan stop"                         :"scan_stop",
+            "scan incr"                         :"scan_incr",
+            
+            "NaVolt start (volts)"              :"scan_start", 
+            "NaVolt stop (volts)"               :"scan_stop", 
+            "NaVolt inc (volts)"                :"scan_incr", 
                                                         
             "DAQ drives sampleref"              :"smpl_ref_daq_drive", 
             "DAQ service time (ms)"             :"service_t", 
@@ -168,10 +176,6 @@ class bdata(mdata):
             "helicity flip sleep (ms)"          :"hel_sleep", 
             "Helicity flip sleep(ms)"           :"hel_sleep", 
                                                                                                     
-            "NaVolt start (volts)"              :"volt_start", 
-            "NaVolt stop (volts)"               :"volt_stop", 
-            "NaVolt inc (volts)"                :"volt_incr", 
-                                                        
             "num bins"                          :"nbins", 
             "num cycles per supercycle"         :"ncycles", 
             "Number dwelltimes per freq"        :"ndwell_per_f", 
@@ -610,7 +614,7 @@ class bdata(mdata):
         if self.area == 'ISAC':
             if self.run >= 45000:   self.area = 'BNQR'
             else:                   self.area = 'BNMR'
-            
+    
     # ======================================================================= #
     def __getattr__(self, name):
         
