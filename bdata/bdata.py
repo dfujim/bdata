@@ -1159,6 +1159,8 @@ class bdata(mdata):
                     break
         elif self.mode == '1e':
             xlabel = 'Magnet mA'
+        elif self.mode == '1c':
+            xlabel = 'Camp'
         
         return self.hist[xlabel].data
     
@@ -1576,17 +1578,16 @@ class bdata(mdata):
                 return out
         
         # 1F ------------------------------------------------------------------
-        elif self.mode in ('1f', '1n', '1w', '1e'):
+        elif self.mode in ('1f', '1n', '1w', '1e', '1c'):
             
             # get xaxis label and data key
-            if self.mode == '1f':
-                xlab = 'freq'
-            elif self.mode == '1w':
-                xlab = 'xpar'
-            elif self.mode == '1n':
-                xlab = 'mV'
-            elif self.mode == '1e':
-                xlab = 'mA'
+            xlab_dict = {   '1f': 'freq',
+                            '1w': 'xpar',
+                            '1n': 'mV',
+                            '1e': 'mA',
+                            '1c': 'camp',
+                            }
+            xlab = xlab_dict[self.mode]
             
             # deadtime correction
             d = self._correct_deadtime(d, deadtime)
