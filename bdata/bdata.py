@@ -140,7 +140,8 @@ class bdata(mdata):
             
             "Custom var enabled"                :"customv_enable", 
             "Custom var read name"              :"customv_name_read",    
-            "Custom var write name"             :"customv_name_write",    
+            "Custom var write name"             :"customv_name_write",   
+             
             "Start custom scan"                 :"scan_start",    
             "Stop custom scan"                  :"scan_stop",    
             "Custom Increment"                  :"scan_incr", 
@@ -152,6 +153,14 @@ class bdata(mdata):
             "NaVolt start (volts)"              :"scan_start", 
             "NaVolt stop (volts)"               :"scan_stop", 
             "NaVolt inc (volts)"                :"scan_incr", 
+            
+            "laser start (volts)"               :"scan_start", 
+            "laser stop (volts)"                :"scan_stop", 
+            "laser inc (volts)"                 :"scan_incr", 
+           
+            "field start (gauss)"               :"scan_start", 
+            "field stop (gauss)"                :"scan_stop", 
+            "field inc (gauss)"                 :"scan_incr", 
                                                         
             "DAQ drives sampleref"              :"smpl_ref_daq_drive", 
             "DAQ service time (ms)"             :"service_t", 
@@ -484,6 +493,15 @@ class bdata(mdata):
                 'sh'                    :'slope_helicity',
                 'slope_helicity'        :'slope_helicity',
     }
+    
+    # output keys for mode TI runs
+    mode1_dict = {  '1f': 'freq',
+                    '1w': 'xpar',
+                    '1n': 'mV',
+                    '1e': 'mA',
+                    '1c': 'camp',
+                    '1d': 'las',
+                    }
     
     # set environment variable same to get data archive location
     # should point to something like
@@ -1149,6 +1167,8 @@ class bdata(mdata):
     # ======================================================================= #
     def _get_xhist(self):
         """Get histogram data for x axis."""
+        
+        # histogram name
         if self.mode == '1f':
             xlabel = 'Frequency'
         elif self.mode == '1w':
@@ -1161,8 +1181,16 @@ class bdata(mdata):
             xlabel = 'Magnet mA'
         elif self.mode == '1c':
             xlabel = 'Camp'
+        elif self.mode == '1d':
+            xlabel = 'Laser'
         
-        return self.hist[xlabel].data
+        # get data
+        try:
+            return self.hist[xlabel].data
+            
+        # custom scan
+        except KeyError:
+            return self.hist['Custom EPICS scan'].data
     
     # ======================================================================= #
     def _rebin(self, xdx, rebin):
@@ -1578,16 +1606,10 @@ class bdata(mdata):
                 return out
         
         # 1F ------------------------------------------------------------------
-        elif self.mode in ('1f', '1n', '1w', '1e', '1c'):
+        elif self.mode in self.mode1_dict.keys(): # ('1f', '1n', '1w', '1e', '1c', '1d')
             
             # get xaxis label and data key
-            xlab_dict = {   '1f': 'freq',
-                            '1w': 'xpar',
-                            '1n': 'mV',
-                            '1e': 'mA',
-                            '1c': 'camp',
-                            }
-            xlab = xlab_dict[self.mode]
+            xlab = self.mode1_dict[self.mode]
             
             # deadtime correction
             d = self._correct_deadtime(d, deadtime)
