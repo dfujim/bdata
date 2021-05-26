@@ -697,9 +697,9 @@ class bdata(mdata):
         bias15 = getattr(epics.bias15, attr)/1000.
         
         # get platform bias 
-        if self.area == 'BNMR':
+        if self.area.upper() == 'BNMR':
             platform = getattr(epics.nmr_bias, attr)
-        elif self.area == 'BNQR':
+        elif self.area.upper() == 'BNQR':
             platform = getattr(epics.nqr_bias, attr)/1000.
         else:
             raise RuntimeError('Area not recognized')
