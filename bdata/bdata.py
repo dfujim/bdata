@@ -562,9 +562,10 @@ class bdata(mdata):
         super().__init__(filename)
         
         # cast histogram data to floats
-        for key, hist in self.hist.items():
-            self.hist[key].data = hist.data.astype(np.float64)
-        
+        if hasattr(self, 'hist'):
+            for key, hist in self.hist.items():
+                self.hist[key].data = hist.data.astype(np.float64)
+            
         # Sort independent variables into dictionaries by title
         self.ppg = vdict()
         self.camp = vdict()
@@ -613,20 +614,29 @@ class bdata(mdata):
     # ======================================================================= #
     def __getattr__(self, name):
         
-        try:
-            # fetch from top level
+        if name in ('hist', 'camp', 'ppg', 'epics'):
             return getattr(object, name)
-        except AttributeError as err:
-            
+        
+        else:
+
+            # fetch from top level
+            try:
+                return getattr(object, name)
+                
             # fetching of second level
-            if hasattr(self.camp, name): return getattr(self.camp, name)
-            if hasattr(self.epics, name):return getattr(self.epics, name)
-            if hasattr(self.ppg, name):  return getattr(self.ppg, name)
-            if hasattr(self.hist, name): return getattr(self.hist, name)
-                    
-            # nothing worked - raise error
-            raise AttributeError(err) from None
+            except AttributeError as err:
+                print('err')
+                if hasattr(self, 'camp') and hasattr(self.camp, name):
+                    return getattr(self.camp, name)
+                if hasattr(self, 'epics') and hasattr(self.epics, name): 
+                    return getattr(self.epics, name)
+                if hasattr(self, 'ppg') and hasattr(self.ppg, name): 
+                    return getattr(self.ppg, name)
+                if hasattr(self, 'hist') and hasattr(self.hist, name): 
+                    return getattr(self.hist, name)
                         
+                raise AttributeError(err) from None
+                                
     # ======================================================================= #
     def __repr__(self):
         """
