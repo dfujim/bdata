@@ -625,7 +625,6 @@ class bdata(mdata):
                 
             # fetching of second level
             except AttributeError as err:
-                print('err')
                 if hasattr(self, 'camp') and hasattr(self.camp, name):
                     return getattr(self.camp, name)
                 if hasattr(self, 'epics') and hasattr(self.epics, name): 
