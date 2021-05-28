@@ -142,13 +142,16 @@ class bdata(mdata):
             "Custom var read name"              :"customv_name_read",    
             "Custom var write name"             :"customv_name_write",   
              
-            "Start custom scan"                 :"scan_start",    
-            "Stop custom scan"                  :"scan_stop",    
-            "Custom Increment"                  :"scan_incr", 
+            "Start custom scan"                 :"customv_scan_start",    
+            "Stop custom scan"                  :"customv_scan_stop",    
+            "Custom Increment"                  :"customv_scan_incr", 
+            
+            "scan device"                       :"scan_device",
             
             "scan start"                        :"scan_start",
             "scan stop"                         :"scan_stop",
             "scan incr"                         :"scan_incr",
+            "scan increment"                    :"scan_incr",
             
             "NaVolt start (volts)"              :"scan_start", 
             "NaVolt stop (volts)"               :"scan_stop", 
@@ -266,6 +269,7 @@ class bdata(mdata):
             "/Magnet/mag_set"                           :"b_field_setpt",     
             "/Magnet/mag_read"                          :"mag_current", 
             "/Magnet/controls/sys_status"               :"mag_ctrl_status", 
+            "/Magnet/ramp_status"                       :"mag_ramp_status", 
             "/Magnet/volts"                             :"mag_voltage", 
             "/mass_flow/read_flow"                      :"mass_read", 
             "/mass_flow/set_flow"                       :"mass_set",   
