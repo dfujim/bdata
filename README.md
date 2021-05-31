@@ -34,6 +34,7 @@ asymmetries or combining scans.
 * [`bmerged`](https://github.com/dfujim/bdata/wiki/bmerged) [object]: combine `bdata` objects
 * [`life`](https://github.com/dfujim/bdata/wiki/life) [`mdict` object]: dictionary of probe lifetimes. 
 * [`containers`](https://github.com/dfujim/bdata/wiki/containers) [module]: specially defined `mdict` objects with set function. 
+* [`exceptions`](https://github.com/dfujim/bdata/wiki/exceptions) [module]: custom exceptions and warnings for common issues 
 
 ## Citing
 
