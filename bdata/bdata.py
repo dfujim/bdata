@@ -182,6 +182,8 @@ class bdata(mdata):
             "frequency start (Hz)"              :"freq_start", 
             "frequency stop (Hz)"               :"freq_stop", 
             
+            "scan var histo factor"             :"scan_var_histo_factor",
+            
             "init mode file"                    :"init_mode", 
             "init mode"                         :"init_mode", 
                                                         
@@ -804,13 +806,13 @@ class bdata(mdata):
                     hist['NBMB+'].data, \
                     hist['NBMB-'].data]
             
-        elif self.area == 'BNMR':
+        elif self.area.upper() == 'BNMR':
             data = [hist['F+'].data, \
                     hist['F-'].data, \
                     hist['B+'].data, \
                     hist['B-'].data]
         
-        elif self.area == 'BNQR':
+        elif self.area.upper() == 'BNQR':
             data = [hist['R+'].data, \
                     hist['R-'].data, \
                     hist['L+'].data, \
