@@ -1,12 +1,12 @@
 import setuptools
 from distutils.core import Extension
 
-with open("README.md", "r") as fh:
+with open("README.md", "r", encoding="utf8") as fh:
     long_description = fh.read()
 
 setuptools.setup(
     name="bdata",
-    version="6.5.0",
+    version="6.5.1",
     author="Derek Fujimoto",
     author_email="fujimoto@phas.ubc.ca",
     description="β-NMR/β-NQR MUD file reader and asymmetry calculator",
@@ -23,7 +23,7 @@ setuptools.setup(
         "Operating System :: MacOS",
         "Development Status :: 5 - Production/Stable",
     ],
-    install_requires=['cython>=0.28', 'numpy>=1.14', 'mud-py>=1.2.2', 
+    install_requires=['cython>=0.28', 'numpy>=1.14', 'mud-py>=1.2.3', 
                       'requests>=2.22.0', 'pandas>=0.25', 'iminuit>=2.6.1'],
 )
 
