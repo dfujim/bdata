@@ -28,10 +28,10 @@ __doc__="""
     Example usage ------------------------------------------------------------
     
         import bdata as bd
-        b = bd.bdata(40001)                 # read run 40001 from current year. 
+        b = bd.bdata(40001)                  # read run 40001 from current year. 
         b = bd.bdata(40001, year=2009)       # read run 40001 from year 2009.
-        b = bd.bdata(0, filename='file.msr') # read file from local memory, run 
-                                              number unused.
+        b = bd.bdata(filename='file.msr')    # read file from local memory, run 
+                                               number unused.
     Methods ------------------------------------------------------------------
     
         b.asym()            # calculate asymmetry. See bdata.asym docstring.     
@@ -517,8 +517,12 @@ class bdata(mdata):
     evar_bnqr = "BNQR_ARCHIVE"
     
     # ======================================================================= #
-    def __init__(self, run_number, year=None, filename=""):
+    def __init__(self, run_number=None, year=None, filename=""):
         """Constructor. Reads file, stores and sorts data."""
+            
+        # check input
+        if (run_number is None or year is None) and filename == '':
+            raise InputError("Bad input, specify either run number or filename")
             
         # convert dkeys keys to lower case
         bdata.dkeys = {k.lower():i for k, i in self.dkeys.items()}
