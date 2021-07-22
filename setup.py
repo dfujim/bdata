@@ -6,7 +6,7 @@ with open("README.md", "r", encoding="utf8") as fh:
 
 setuptools.setup(
     name="bdata",
-    version="6.5.3",
+    version="6.5.4",
     author="Derek Fujimoto",
     author_email="fujimoto@phas.ubc.ca",
     description="β-NMR/β-NQR MUD file reader and asymmetry calculator",
