@@ -231,7 +231,9 @@ class bdata(mdata):
             "Single tone simulated"             :"sgle_tone_sim", 
                                                         
             "use defaults for midbnmr"          :"defaults", 
-             
+            
+            "probe species"                     :"probe_species",
+ 
         # CAMP
             "/biasV/input1"                             :"rb_cell_bias_set", 
             "/biasV/output1"                            :"rb_cell_bias_read", 
