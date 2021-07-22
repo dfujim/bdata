@@ -370,6 +370,7 @@ class bdata(mdata):
             "ILE2:BIASTUBE:"                            :"biastube", 
             "ILE2:BIASTUBE:V"                           :"biastube", 
             "ILE2:BIASTUBE:VOL"                         :"biastube", 
+            "ILE2:BIASTUBE:RDVOL"                       :"biastube", 
              
             "ILE2:DPPLR:CH0:HW:RDVOL"                   :"dopplertube", 
              
