@@ -523,8 +523,8 @@ class bdata(mdata):
         """Constructor. Reads file, stores and sorts data."""
             
         # check input
-        if (run_number is None or year is None) and filename == '':
-            raise InputError("Bad input, specify either run number or filename")
+        if run_number is None and filename == '':
+            raise InputError("Bad input, specify either run_number or filename")
             
         # convert dkeys keys to lower case
         bdata.dkeys = {k.lower():i for k, i in self.dkeys.items()}
