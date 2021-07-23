@@ -1209,13 +1209,8 @@ class bdata(mdata):
             xlabel = 'Custom EPICS scan'
         
         # get data
-        try:
-            return self.hist[xlabel].data
+        return self.hist[xlabel].data
             
-        # custom scan
-        except KeyError:
-            return self.hist['Custom EPICS scan'].data
-    
     # ======================================================================= #
     def _rebin(self, xdx, rebin):
         """
@@ -1634,8 +1629,8 @@ class bdata(mdata):
             
             # get xaxis label and data key
             xlab = self.mode1_dict[self.mode]
-            if xlab not in self.hist.keys():
-                xlab = 'Custom EPICS scan'
+            if 'Custom EPICS scan' in self.hist.keys():
+                xlab = 'custom'
             
             # deadtime correction
             d = self._correct_deadtime(d, deadtime)
