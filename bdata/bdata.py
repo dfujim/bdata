@@ -568,7 +568,7 @@ class bdata(mdata):
             filename = os.path.join(directory, str(year), run)
             
             # if file does not exist, try to fetch from web
-            if not os.path.isfile(filename):
+            if not (os.path.isfile(filename) or os.path.islink(filename)):
                 
                 # make directory 
                 os.makedirs(os.path.join(directory, str(year)), exist_ok=True)
