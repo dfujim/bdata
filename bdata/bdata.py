@@ -566,9 +566,15 @@ class bdata(mdata):
             # finalize file name
             run = '%06d.msr' % run_number
             filename = os.path.join(directory, str(year), run)
+
+            # check if file is link - follow the link
+            if os.path.islink(filename):
+                path = os.path.split(filename)[0]
+                filename = os.path.split(os.readlink(filename))[-1]
+                filename = os.path.join(path, filename)
             
             # if file does not exist, try to fetch from web
-            if not (os.path.isfile(filename) or os.path.islink(filename)):
+            if not os.path.isfile(filename):
                 
                 # make directory 
                 os.makedirs(os.path.join(directory, str(year)), exist_ok=True)
