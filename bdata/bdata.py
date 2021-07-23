@@ -1199,6 +1199,9 @@ class bdata(mdata):
         elif self.mode == '1d':
             xlabel = 'Laser'
         
+        if 'Custom EPICS scan' in self.hist.keys():
+            xlabel = 'Custom EPICS scan'
+        
         # get data
         try:
             return self.hist[xlabel].data
@@ -1625,6 +1628,8 @@ class bdata(mdata):
             
             # get xaxis label and data key
             xlab = self.mode1_dict[self.mode]
+            if xlab not in self.hist.keys():
+                xlab = 'Custom EPICS scan'
             
             # deadtime correction
             d = self._correct_deadtime(d, deadtime)
