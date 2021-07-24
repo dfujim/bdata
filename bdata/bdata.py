@@ -380,6 +380,10 @@ class bdata(mdata):
             "ILE2A1:HH:RDCU"                            :"hh_current", 
             "ILE2A1:HH:RDCUR"                           :"hh_current", 
             "ILE2A1:HH3:RDCUR"                          :"hh_current", 
+            
+            "TRILIS177:METER:LAMBDA1"                   :"las_lambda",
+            "TRILIS177:METER:WAVENUM1"                  :"las_wavenum",
+            
             "":""
             }
     
