@@ -511,6 +511,7 @@ class bdata(mdata):
     
     # output keys for mode TI runs
     mode1_dict = {  '1f': 'freq',
+                    '1x': 'freq',
                     '1w': 'xpar',
                     '1n': 'mV',
                     '1e': 'mA',
@@ -1196,6 +1197,8 @@ class bdata(mdata):
         # histogram name
         if self.mode == '1f':
             xlabel = 'Frequency'
+        elif self.mode == '1x':
+            xlabel = 'Frequency'
         elif self.mode == '1w':
             xlabel = 'x parameter'
         elif self.mode == '1n':
@@ -1327,7 +1330,7 @@ class bdata(mdata):
                     returned time is average time over rebin range
                     returned asym is weighted mean
                 
-            1F/1W: 
+            1F/1W/1X: 
                 Allows manual removal of unwanted bins. 
                 
                 Provides the option of deadtime correction. Set to zero to disable.
@@ -1629,7 +1632,7 @@ class bdata(mdata):
                 return out
         
         # 1F ------------------------------------------------------------------
-        elif self.mode in self.mode1_dict.keys(): # ('1f', '1n', '1w', '1e', '1c', '1d')
+        elif self.mode in self.mode1_dict.keys(): # ('1f', '1n', '1w', '1e', '1c', '1d', '1x')
             
             # get xaxis label and data key
             xlab = self.mode1_dict[self.mode]
