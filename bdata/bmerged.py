@@ -4,7 +4,7 @@
 # Mar 2020
 
 from bdata import bdata
-from mudpy.containers import mdict,mhist,mlist,mvar
+from mudpy.containers import mdict, mhist, mlist, mvar
 import numpy as np
 import pandas as pd
 import re
@@ -22,7 +22,7 @@ class bmerged(bdata):
     equivalent_modes = [['1x', '1f']]
 
     # ======================================================================= #
-    def __init__(self,bdata_list):
+    def __init__(self, bdata_list):
         """
             bdata_list:               list of bdata objects
         """
@@ -35,28 +35,28 @@ class bmerged(bdata):
         years = np.array([b.year for b in bdata_list])
         
         # set some common parameters
-        for key in ('apparatus','area','das','description','duration','end_date',
-                    'end_time','exp','experimenter','lab','method','mode',
-                    'orientation','sample','start_date','start_time','title'):
+        for key in ('apparatus', 'area', 'das', 'description', 'duration', 'end_date', 
+                    'end_time', 'exp', 'experimenter', 'lab', 'method', 'mode', 
+                    'orientation', 'sample', 'start_date', 'start_time', 'title'):
                         
-            x = np.array([getattr(b,key) for b in bdata_list])
-            setattr(self,key,self._combine_values(key,x))
+            x = np.array([getattr(b, key) for b in bdata_list])
+            setattr(self, key, self._combine_values(key, x))
             
         # set the run number and year
-        self.run = int(''.join(map(str,runs)))
-        self.year = int(''.join(map(str,years)))
+        self.run = int(''.join(map(str, runs)))
+        self.year = int(''.join(map(str, years)))
         
         # set ppg, camp, and epics
-        for top in ('ppg','epics','camp'):
+        for top in ('ppg', 'epics', 'camp'):
             
             d = mdict()
             
-            keys = list(getattr(bdata_list[0],top).keys())
-            x = mlist([getattr(b,top) for b in bdata_list])
+            keys = list(getattr(bdata_list[0], top).keys())
+            x = mlist([getattr(b, top) for b in bdata_list])
             for key in keys:
                 d[key] = self._combine_var(x[key])
                 
-            setattr(self,top,d)
+            setattr(self, top, d)
             
         # combine the histograms
         self._combine_hist(bdata_list)
@@ -73,7 +73,7 @@ class bmerged(bdata):
                     'parameters and dwelltimes. Cannot combine histograms.')
             
     # ======================================================================= #
-    def _combine_hist(self,bdata_list):
+    def _combine_hist(self, bdata_list):
         """
             Apply np.sum to base histograms and set result to top level
             
@@ -84,12 +84,12 @@ class bmerged(bdata):
         hist = mlist([b.hist for b in bdata_list])
         
         # these will get combined
-        hist_names = ('F+','F-','B+','B-',
-                      'L+','L-','R+','R-',
-                      'NBMF+','NBMF-','NBMB+','NBMB-')
+        hist_names = ('F+', 'F-', 'B+', 'B-', 
+                      'L+', 'L-', 'R+', 'R-', 
+                      'NBMF+', 'NBMF-', 'NBMB+', 'NBMB-')
         
         # these modes require appending scans rather than averaging
-        hist_xnames = ('Frequency','x parameter',)
+        hist_xnames = ('Frequency', 'x parameter', )
         
         # make container
         hist_joined = mdict()
@@ -113,7 +113,7 @@ class bmerged(bdata):
                         
             # combine scan-less runs (just add the histogrms)
             if not do_append:
-                hist_obj.data = np.sum(list(hist[name].data),axis=0)
+                hist_obj.data = np.sum(list(hist[name].data), axis=0)
             
             # combine runs with scans (append the data)
             else:
@@ -122,17 +122,17 @@ class bmerged(bdata):
             # set common histogram attributes
             hist_obj.title = name
             
-            for key in ('background1','background2','n_events','n_bytes'):
-                setattr(hist_obj,key,int(np.sum(getattr(hist[name],key))))
+            for key in ('background1', 'background2', 'n_events', 'n_bytes'):
+                setattr(hist_obj, key, int(np.sum(getattr(hist[name], key))))
                 
-            for key in ('id_number','n_bins','good_bin1','good_bin2','t0_bin',
-                        't0_ps','s_per_bin','fs_per_bin','htype'):
+            for key in ('id_number', 'n_bins', 'good_bin1', 'good_bin2', 't0_bin', 
+                        't0_ps', 's_per_bin', 'fs_per_bin', 'htype'):
                 
-                item = getattr(hist[name],key)
+                item = getattr(hist[name], key)
                 if all(item[0] == item):
-                    setattr(hist_obj,key,item[0])
+                    setattr(hist_obj, key, item[0])
                 else:
-                    setattr(hist_obj,key,np.nan)
+                    setattr(hist_obj, key, np.nan)
                 
             # save in dictionary
             hist_joined[name] = hist_obj
@@ -140,7 +140,7 @@ class bmerged(bdata):
         self.hist = hist_joined
     
     # ======================================================================= #
-    def _combine_values(self,name,x):
+    def _combine_values(self, name, x):
         """
             Combine data array
             
@@ -148,16 +148,16 @@ class bmerged(bdata):
             x:      array of values to combine
         """
         
-        if type(x) in (np.ndarray,mlist):
+        if type(x) in (np.ndarray, mlist):
             
             x = np.asarray(x)
             
             if name == 'duration':    return int(np.sum(x))
                           
-            elif name in ('end_date',
+            elif name in ('end_date', 
                           'end_time'):  return x[-1]
                           
-            elif name in ('start_date',
+            elif name in ('start_date', 
                           'start_time'):return x[0]
             
             elif name == 'experimenter':
@@ -165,7 +165,7 @@ class bmerged(bdata):
                 # remove duplicates
                 all_names = []
                 for i in x:
-                    all_names.extend(re.split('[:, ]',i))
+                    all_names.extend(re.split('[:, ]', i))
                 all_names = np.unique(all_names)
                 all_names = all_names[all_names!='']
                 return ', '.join(all_names)
@@ -186,15 +186,15 @@ class bmerged(bdata):
                 
                 
                 
-            elif name in ('apparatus',
-                          'area',
-                          'das',
-                          'lab',
-                          'method',
-                          'orientation',
-                          'description',
-                          'sample',
-                          'title',
+            elif name in ('apparatus', 
+                          'area', 
+                          'das', 
+                          'lab', 
+                          'method', 
+                          'orientation', 
+                          'description', 
+                          'sample', 
+                          'title', 
                           'exp'):
                 if all(x == x[0]):      return x[0]
                 else:                   return 'non-matching ("' + str(x[0]) + \
@@ -205,7 +205,7 @@ class bmerged(bdata):
             return x
     
     # ======================================================================= #
-    def _combine_var(self,varlist):
+    def _combine_var(self, varlist):
         """
             Combine variable
             
@@ -224,7 +224,7 @@ class bmerged(bdata):
         std += self.epsilon
         
         # weighted mean 
-        var.mean = np.average(avg,weights=1/std**2)
+        var.mean = np.average(avg, weights=1/std**2)
         
         # stdev of weighted mean
         if all(std == self.epsilon): 
@@ -242,12 +242,12 @@ class bmerged(bdata):
         # things which should be the same across all elements
         for name in ('units', 'description', 'title', 'id_number'):
                 
-            x = np.array([getattr(v,name) for v in varlist])
+            x = np.array([getattr(v, name) for v in varlist])
                             
             if all(x == x[0]):      
-                setattr(var,name,x[0])
+                setattr(var, name, x[0])
             else:                   
-                setattr(var,name,'non-matching ("%s" + others)' % str(x[0]))
+                setattr(var, name, 'non-matching ("%s" + others)' % str(x[0]))
 
         return var
 

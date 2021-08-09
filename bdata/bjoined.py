@@ -1,7 +1,7 @@
 # Python object for math operations on bdata objects. 
 # Derek Fujimoto
 # Aug 2019
-from mudpy.containers import mdict,mhist,mlist
+from mudpy.containers import mdict, mhist, mlist
 from bdata import bdata
 import numpy as np
 import pandas as pd
@@ -18,7 +18,7 @@ class bjoined(bdata):
               'mode', 'year')
     
     # ======================================================================= #
-    def __init__(self,bdata_list):
+    def __init__(self, bdata_list):
         """
             bdata_list:               list of bdata objects
         """
@@ -36,15 +36,15 @@ class bjoined(bdata):
         self._combine_hist()
     
     # ======================================================================= #
-    def __getattr__(self,name):
+    def __getattr__(self, name):
         """
             Get attribute of underlying data as a list.
         """
         try:
             # fetch from top level
-            return getattr(object,name)
+            return getattr(object, name)
         except AttributeError:
-            return mlist([getattr(d,name) for d in self.data])
+            return mlist([getattr(d, name) for d in self.data])
 
     # ======================================================================= #
     def __repr__(self):
@@ -61,8 +61,8 @@ class bjoined(bdata):
                 if key[0] == '_': continue
                 
                 # exceptions
-                if key in ('ivar','sclr'):
-                    items.append([key,[di[key].__class__ for di in d]])
+                if key in ('ivar', 'sclr'):
+                    items.append([key, [di[key].__class__ for di in d]])
               
                 # common items
                 elif key in self.common:
@@ -70,17 +70,17 @@ class bjoined(bdata):
                 
                 # mdict objects
                 elif d[0][key].__class__ == mdict:
-                    items.append([key,d[0][key]])
+                    items.append([key, d[0][key]])
                 
                 # strings and non iterables
-                elif not hasattr(d[0][key],'__iter__') or d[0][key].__class__ == str:
-                    items.append([key,[di[key] for di in d]])                
+                elif not hasattr(d[0][key], '__iter__') or d[0][key].__class__ == str:
+                    items.append([key, [di[key] for di in d]])                
                 
                 # misc objects
                 else:
-                    items.append([key,[di[key].__class__ for di in d]])
+                    items.append([key, [di[key].__class__ for di in d]])
                 
-            m = max(map(len,dkeys)) + 1
+            m = max(map(len, dkeys)) + 1
             s = '\n'.join([k.rjust(m)+': '+repr(v) for k, v in sorted(items)])
             return s
         else:
@@ -96,12 +96,12 @@ class bjoined(bdata):
         """
         
         # these will get combined
-        hist_names = ('F+','F-','B+','B-',
-                      'L+','L-','R+','R-',
-                      'NBMF+','NBMF-','NBMB+','NBMB-')
+        hist_names = ('F+', 'F-', 'B+', 'B-', 
+                      'L+', 'L-', 'R+', 'R-', 
+                      'NBMF+', 'NBMF-', 'NBMB+', 'NBMB-')
         
         # these modes require appending scans rather than averaging
-        hist_xnames = ('Frequency','x parameter',)
+        hist_xnames = ('Frequency', 'x parameter', )
         
         # make container
         hist_joined = mdict()
@@ -125,7 +125,7 @@ class bjoined(bdata):
             
             # combine scan-less runs (just add the histogrms)
             if not do_append:
-                hist_data = np.sum(list(self.hist[name].data),axis=0)
+                hist_data = np.sum(list(self.hist[name].data), axis=0)
             
             # combine runs with scans (append the data)
             elif name in hist_xnames:                
@@ -136,17 +136,17 @@ class bjoined(bdata):
             # set common histogram attributes
             hist_obj.title = name
             
-            for key in ('background1','background2','n_events','n_bytes'):
-                setattr(hist_obj,key,int(np.sum(getattr(self.hist[name],key))))
+            for key in ('background1', 'background2', 'n_events', 'n_bytes'):
+                setattr(hist_obj, key, int(np.sum(getattr(self.hist[name], key))))
                 
-            for key in ('id_number','n_bins','good_bin1','good_bin2','t0_bin',
-                        't0_ps','s_per_bin','fs_per_bin','htype'):
+            for key in ('id_number', 'n_bins', 'good_bin1', 'good_bin2', 't0_bin', 
+                        't0_ps', 's_per_bin', 'fs_per_bin', 'htype'):
                 
-                item = getattr(self.hist[name],key)
+                item = getattr(self.hist[name], key)
                 if all(item[0] == item):
-                    setattr(hist_obj,key,item[0])
+                    setattr(hist_obj, key, item[0])
                 else:
-                    setattr(hist_obj,key,np.nan)
+                    setattr(hist_obj, key, np.nan)
                 
             # save in dictionary
             hist_joined[name] = hist_obj
@@ -154,9 +154,9 @@ class bjoined(bdata):
         self.hist_joined = hist_joined
     
     # ======================================================================= #
-    def _get_area_data(self,nbm=False):
+    def _get_area_data(self, nbm=False):
         """Get histogram list based on area type. 
-        List pattern: [type1_hel+,type1_hel-,type2_hel+,type2_hel-]
+        List pattern: [type1_hel+, type1_hel-, type2_hel+, type2_hel-]
         where type1/2 = F/B or R/L in that order.
         """
         
@@ -165,36 +165,36 @@ class bjoined(bdata):
         
         # return data set
         if self.mode == '1n' or nbm:
-            data = [hist['NBMF+'].data,\
-                    hist['NBMF-'].data,\
-                    hist['NBMB+'].data,\
+            data = [hist['NBMF+'].data, \
+                    hist['NBMF-'].data, \
+                    hist['NBMB+'].data, \
                     hist['NBMB-'].data]
             
         elif self.area == 'BNMR':
-            data = [hist['F+'].data,\
-                    hist['F-'].data,\
-                    hist['B+'].data,\
+            data = [hist['F+'].data, \
+                    hist['F-'].data, \
+                    hist['B+'].data, \
                     hist['B-'].data]
         
         elif self.area == 'BNQR':
-            data = [hist['R+'].data,\
-                    hist['R-'].data,\
-                    hist['L+'].data,\
+            data = [hist['R+'].data, \
+                    hist['R-'].data, \
+                    hist['L+'].data, \
                     hist['L-'].data]
         else:
             data = []
         
         if self.mode == '2h':
-            data.extend([hist['AL1+'].data,hist['AL1-'].data,
-                         hist['AL0+'].data,hist['AL0-'].data,
-                         hist['AL3+'].data,hist['AL3-'].data,
-                         hist['AL2+'].data,hist['AL2-'].data])
+            data.extend([hist['AL1+'].data, hist['AL1-'].data, 
+                         hist['AL0+'].data, hist['AL0-'].data, 
+                         hist['AL3+'].data, hist['AL3-'].data, 
+                         hist['AL2+'].data, hist['AL2-'].data])
         
         # copy
         return [np.copy(d) for d in data]
     
     # ======================================================================= #
-    def _get_ppg(self,name):
+    def _get_ppg(self, name):
         """Get ppg parameter mean value"""
         
         values = self.ppg[name].mean
@@ -218,19 +218,19 @@ class bjoined(bdata):
         return self.hist_joined[xlabel].data
     
     # ======================================================================= #
-    def _set_common(self,name):
+    def _set_common(self, name):
         """
             Set attribute which is shared among all joine data sets.
         """
         
-        item_list = getattr(self,name)
+        item_list = getattr(self, name)
         if all([item_list[0] == i for i in item_list]):
-            setattr(self,name,item_list[0])
+            setattr(self, name, item_list[0])
         else:
-            setattr(self,name,item_list)
+            setattr(self, name, item_list)
             
     # ======================================================================= #
-    def asym_mean(self,*asym_args,**asym_kwargs):
+    def asym_mean(self, *asym_args, **asym_kwargs):
         """
             Get individual asymmetries first, then combine with weighted mean
             
@@ -238,17 +238,17 @@ class bjoined(bdata):
         """
     
         # calcuate asymmetries
-        asym_list = [b.asym(*asym_args,**asym_kwargs) for b in self.data]
+        asym_list = [b.asym(*asym_args, **asym_kwargs) for b in self.data]
         
         # make into dataframes, get errors as weights
         for i in range(len(asym_list)):
             asym = asym_list[i]
             
-            # tuple return: (x,a,da)
+            # tuple return: (x, a, da)
             if type(asym) is np.ndarray:
-                asym_list[i] = pd.DataFrame({'x':asym[0],'a':asym[1],'da':asym[2]})
+                asym_list[i] = pd.DataFrame({'x':asym[0], 'a':asym[1], 'da':asym[2]})
             
-            # dict return: (x,p:(a,da),...)
+            # dict return: (x, p:(a, da), ...)
             elif type(asym) is mdict:
                 
                 # if entry is tuple, split into error and value
@@ -273,7 +273,7 @@ class bjoined(bdata):
         errors = pd.DataFrame(df[[c for c in df.columns if 'd' in c]])
         
         # rename error columns
-        errors.rename(columns={c:c.replace('d','') for c in errors.columns},
+        errors.rename(columns={c:c.replace('d', '') for c in errors.columns}, 
                       inplace=True)
         
         # make errors weights
@@ -292,20 +292,20 @@ class bjoined(bdata):
         
         # make output type the same as the original 
         if type(asym) is np.ndarray:
-            return np.array([values.index.values,
-                             values.values.T[0],
+            return np.array([values.index.values, 
+                             values.values.T[0], 
                              errors.values.T[0]])
         
         elif type(asym) is mdict:
             out = mdict()
             out[xk] = values.index
             for c in values.columns:
-                out[c] = (values[c].values,errors[c].values)
+                out[c] = (values[c].values, errors[c].values)
         
             return out
         
     # ======================================================================= #
-    def beam_kev(self,get_error=False):
+    def beam_kev(self, get_error=False):
         return np.asarray([d.beam_kev(get_error=get_error) for d in self.data])
     
     # ======================================================================= #
