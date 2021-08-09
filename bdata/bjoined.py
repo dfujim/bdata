@@ -14,6 +14,9 @@ class bjoined(bdata):
         hist_joined:            combined histograms
     """
     
+    common = ('apparatus', 'area', 'das', 'description', 'exp', 'lab', 'method', 
+              'mode', 'year')
+    
     # ======================================================================= #
     def __init__(self,bdata_list):
         """
@@ -26,10 +29,8 @@ class bjoined(bdata):
         self.data = np.array(bdata_list)[idx]
         
         # set some calculation-required parameters
-        self._set_common('apparatus')
-        self._set_common('area')
-        self._set_common('lab')
-        self._set_common('mode')
+        for c in self.common:
+            self._set_common(c)
         
         # combine the histograms
         self._combine_hist()
@@ -62,6 +63,10 @@ class bjoined(bdata):
                 # exceptions
                 if key in ('ivar','sclr'):
                     items.append([key,[di[key].__class__ for di in d]])
+              
+                # common items
+                elif key in self.common:
+                    items.append([key, getattr(self, key)])
                 
                 # mdict objects
                 elif d[0][key].__class__ == mdict:
@@ -222,9 +227,8 @@ class bjoined(bdata):
         if all([item_list[0] == i for i in item_list]):
             setattr(self,name,item_list[0])
         else:
-            raise RuntimeError('Expected attribute %s to be ' % name+\
-                                'common among data sets')
-    
+            setattr(self,name,item_list)
+            
     # ======================================================================= #
     def asym_mean(self,*asym_args,**asym_kwargs):
         """

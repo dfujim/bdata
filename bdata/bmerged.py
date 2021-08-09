@@ -17,6 +17,9 @@ class bmerged(bdata):
 
     # float machine epsilon - use later to avoid division by zero
     epsilon = np.finfo(float).eps
+    
+    # modes which are compatible, recorded mode is first entry
+    equivalent_modes = [['1x', '1f']]
 
     # ======================================================================= #
     def __init__(self,bdata_list):
@@ -167,12 +170,27 @@ class bmerged(bdata):
                 all_names = all_names[all_names!='']
                 return ', '.join(all_names)
                 
+            elif name == 'mode':
+                
+                if all(x == x[0]):      
+                    return x[0]
+                else:
+                    
+                    # check if equivalent mode
+                    check, new_mode = self._is_equivalent_mode(x)
+                    
+                    if check:
+                        return new_mode
+                    else:               
+                        return 'non-matching ("' + str(x[0]) + '" + others)'
+                
+                
+                
             elif name in ('apparatus',
                           'area',
                           'das',
                           'lab',
                           'method',
-                          'mode',
                           'orientation',
                           'description',
                           'sample',
@@ -232,3 +250,21 @@ class bmerged(bdata):
                 setattr(var,name,'non-matching ("%s" + others)' % str(x[0]))
 
         return var
+
+    # ======================================================================= #
+    def _is_equivalent_mode(self, mode_list):
+        """
+            Check if the modes in the mode_list are equivalent, if so, return 
+            the first equivalent mode and True, else return false and none
+        """
+        
+        check = False
+        for equiv in self.equivalent_modes:
+            
+            check = all([mode in equiv for mode in mode_list])
+            
+            if check:   
+                return (True, mode_list[0])
+                
+        return (False, mode_list[0])
+                
