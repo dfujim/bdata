@@ -6,7 +6,7 @@
 import bdata as bd
 import numpy as np
 import pandas as pd
-import os, glob
+import os, glob, re
 import datetime, warnings, requests
 from .exceptions import MinimizationError, InputError, DkeyWarning, IOWarning
 from .containers import hdict, vdict
@@ -227,6 +227,11 @@ class bdata(mdata):
             "RFon duration (dwelltimes)"        :"rf_on", 
             "RF on time (ms)"                   :"rf_on_ms", 
             "RF enabled"                        :"rf_enable", 
+            
+            'num finer freq regions'            :'fine_freq_nregions',
+            'fine freq start  (hz)'             :'fine_freq_start',
+            'fine freq end  (hz)'               :'fine_freq_end',
+            'fine freq increment  (hz)'         :'fine_freq_increment',
             
             "Single tone simulated"             :"sgle_tone_sim", 
                                                         
@@ -626,20 +631,41 @@ class bdata(mdata):
             for v in self.ivar.values(): 
                 if 'PPG' in v.title:
                     title = v.title.split("/")[-1].lower()
-                    self.ppg[bdata.dkeys.get(title, title)] = v
+                    title_default = re.sub('\W', '', title.replace(' ', '_'))            
+                    
+                    # check for 1x mode keys
+                    if title not in bdata.dkeys.keys():
+                        
+                        title_1x = re.sub('[0-9]', '', title)
+                        if title_1x in bdata.dkeys.keys():
+                            new_title = bdata.dkeys[title_1x]
+                            
+                            try:
+                                num = re.search(r'\d+', title).group()
+                            except AttributeError:
+                                self.ppg[bdata.dkeys.get(title, title_default)] = v
+                                continue
+                                
+                            new_title += '_%s' % num
+                            self.ppg[new_title] = v
+                            continue
+                            
+                    self.ppg[bdata.dkeys.get(title, title_default)] = v
                 elif v.title == "":
                     pass
                 elif v.title[0] == "/":
                     title = v.title.lower()
-                    self.camp[bdata.dkeys.get(title, title)] = v
+                    title_default = re.sub('\W', '', title.replace(' ', '_'))
+                    self.camp[bdata.dkeys.get(title, title_default)] = v
                 else:
                     title = v.title.lower()
-                    self.epics[bdata.dkeys.get(title, title)] = v
+                    title_default = re.sub('\W', '', title.replace(' ', '_'))
+                    self.epics[bdata.dkeys.get(title, title_default)] = v
                     
-                if title not in bdata.dkeys.keys():
-                        message = '%d.%d: "%s" not found in dkeys ("%s").'
-                        message = message % (self.year, self.run, v.title, v.description)
-                        warnings.warn(message, DkeyWarning, stacklevel=2)
+                if title not in bdata.dkeys.keys() and 'fine freq' not in title:
+                    message = '%d.%d: "%s" not found in dkeys ("%s").'
+                    message = message % (self.year, self.run, v.title, v.description)
+                    warnings.warn(message, DkeyWarning, stacklevel=2)
             
         # Fix attributes for old runs
         if year < 2005:
