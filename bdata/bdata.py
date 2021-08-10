@@ -840,6 +840,33 @@ class bdata(mdata):
         return dnew
         
     # ======================================================================= #
+    def _fix_prebeam_offbyone(self, d):
+        """
+            Fix the prebeam off by one error in NQR 20 and 2e runs, starting in 
+            2018 (all runs) and ending with 45262 in 2020 (inclusive). 
+            
+            Issue: extra prebeam bin assigned. 
+            
+            Inputs: d - list of histograms
+        """
+        
+        # check if fix is needed
+        if self.area.lower() == 'bnqr' and 2018 <= self.year <= 2020:
+            if self.year == 2020 and self.run > 45262:
+                pass
+                
+            else: 
+                # do the fix: remove extra bin
+                for i in range(len(d)):
+                    
+                    # double check if fix is needed
+                    if d[i][0] <= 5:
+                        
+                        # fix
+                        d[i] = np.delete(d[i], [0])
+        return d
+                        
+    # ======================================================================= #
     def _get_area_data(self, nbm=False):
         """Get histogram list based on area type. 
         List pattern: [type1_hel+, type1_hel-, type2_hel+, type2_hel-]
@@ -1527,32 +1554,15 @@ class bdata(mdata):
             
             # remove negative count values, delete prebeam entries
             else:
-                
-                bad_ppg_prebeam = False
                 for i in range(len(d)):
                     d[i][d[i]<0] = 0.
                     d[i] = np.delete(d[i], np.arange(n_prebeam))
-                    
-                    # check that prebeams were set correctly 
-                    # (in 2019 some NQR run are off by one)
-                    if d[i][0] < 20:
-                        bad_ppg_prebeam = True
-                
-                # if prebeams not set properly, remove the first bin (off by one error)
-                if bad_ppg_prebeam:
-                    warnings.warn("%d.%d: Detected a " % (self.year, self.run)+\
-                        'mismatch between the ppg prebeams setting and the '+\
-                        'histogram counts. Removing an extra bin to account '+\
-                        'for a prebeam off-by-one error (known to exist for '+\
-                        '2018-2020 B-NQR 20 and 2e runs)')
+
+                # check and fix 2018-2020 NQR prebeam error
+                d = self._fix_prebeam_offbyone(d)
+                if self.mode == '2h':
+                    d_alpha = self._fix_prebeam_offbyone(d_alpha)
                                                     
-                    for i in range(len(d)):
-                        d[i] = np.delete(d[i], [0])
-                        
-                    if self.mode == '2h':
-                        for i in range(len(d_alpha)):
-                            d_alpha[i] = np.delete(d_alpha[i], [0])
-                        
             # deadtime correction
             d = self._correct_deadtime(d, deadtime)
             
