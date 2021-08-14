@@ -380,6 +380,8 @@ class bdata(mdata):
             "ILE2:DPPLR:CH0:HW:RDVOL"                   :"dopplertube_ch0", 
             "ILE2:DPPLR:CH1:HW:RDVOL"                   :"dopplertube_ch1", 
             "ILE2:DPPLR:CH2:HW:RDVOL"                   :"dopplertube_ch2", 
+            
+            "BNMR:EL3:RDVOL"                            :"el3", 
              
             "ILE2A1:HH:CUR"                             :"hh_current", 
             "ILE2A1:HH:RDCU"                            :"hh_current", 
