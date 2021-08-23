@@ -1782,10 +1782,10 @@ class bdata(mdata):
                 out['p'] = self._rebin(ah[0], rebin)
                 out['n'] = self._rebin(ah[1], rebin)
                 
-                if self.area == 'BNMR':
+                if self.area.upper() == 'BNMR':
                     out['f'] = self._rebin(ctr[0], rebin)
                     out['b'] = self._rebin(ctr[1], rebin)
-                elif self.area == 'BNQR':
+                elif self.area.upper() == 'BNQR':
                     out['r'] = self._rebin(ctr[0], rebin)
                     out['l'] = self._rebin(ctr[1], rebin)
                 
