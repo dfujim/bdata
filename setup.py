@@ -1,12 +1,13 @@
 import setuptools
 from distutils.core import Extension
+import os
 
 with open("README.md", "r", encoding = "utf8") as fh:
     long_description = fh.read()
 
 # get setup variables
 variables = {}
-with open(join('bdata', 'version.py')) as fid:
+with open(os.path.join('bdata', 'version.py')) as fid:
     exec(fid.read(), variables)
     
 __version__ = variables['__version__']
