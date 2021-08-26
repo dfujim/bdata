@@ -1317,23 +1317,77 @@ class bdata(mdata):
         return np.array([x_rebin, dx_rebin])
                  
     # ======================================================================= #
-    def asym(self, option="", omit="", rebin=1, hist_select='', nbm=False, deadtime=0):
+    def _split_scan(self, freq, scan):
+        """
+            Split an array into multiple scans by counting the number of unique 
+            frequencies scanned. 
+            
+            freq: array of frequencies
+            scan: array of asymmetry, counters, or other. 
+            
+            return (fsplit, ssplit) where
+            
+            fsplit and ssplit are lists of arrays with each entry corresponding 
+            to a scan
+        """
+
+        # chop off the last incomplete scan
+        n_pts_per_scan = len(np.unique(freq))
+        n_total = len(scan)
+        n_full = n_total - n_total % n_pts_per_scan
+        
+        freq_complete = freq[:n_full]
+        freq_incomplete = freq[n_full:]
+        scan_complete = scan[:n_full]
+        scan_incomplete = scan[n_full:]
+        
+        # split scan
+        freq_split = list(freq_complete.reshape(-1, n_pts_per_scan))
+        scan_split = list(scan_complete.reshape(-1, n_pts_per_scan))
+        
+        # add the incomplete scan
+        freq_split.append(freq_incomplete)
+        scan_split.append(scan_incomplete)
+
+        # remove empty or nan scans
+        freq_final = []
+        scan_final = []
+        for i in range(len(scan_split)):
+            
+            sm = np.sum(scan_split[i])
+            
+            if sm == 0 or not np.isnan(sm):
+                freq_final.append(freq_split[i])
+                scan_final.append(scan_split[i])
+            
+        return (freq_final, scan_final)
+    
+    # ======================================================================= #
+    def asym(self, option="", omit="", rebin=1, hist_select='', nbm=False, 
+             deadtime=0, baseline_correct=0):
         """Calculate and return the asymmetry for various run types. 
            
-        usage: asym(option="", omit="", rebin=1, hist_select='', nbm=False)
+        usage: asym(option="", omit="", rebin=1, hist_select='', nbm=False, 
+                    deadtime=0, baseline_correct=0)
             
         Inputs:
-            option:         see below for details
-            omit:           1f bins to omit if space seperated string in options 
-                                is not feasible. See options description below.
-            rebin:          SLR only. Weighted average over 'rebin' bins to 
-                                reduce array length by a factor of rebin. 
-            hist_select:    string to specify which histograms get combined into 
-                                making the asymmetry calculation. Deliminate 
-                                with [, ] or [;]. Histogram names cannot 
-                                therefore contain either of these characters.
-            nbm:            if True, use neutral beams in calculations
-            deadtime:       detector deadtime used to correct counter values (s)
+            option:             see below for details
+            omit:               mode 1 bins to omit if space seperated string in 
+                                    options is not feasible. See options 
+                                    description below.
+            rebin:              Weighted average over 'rebin' bins to 
+                                    reduce array length by a factor of rebin. 
+            hist_select:        string to specify which histograms get combined 
+                                    into making the asymmetry calculation. 
+                                    Deliminate with [, ] or [;]. Histogram names 
+                                    cannot therefore contain either of these 
+                                    characters.
+            nbm:                if True, use neutral beams in calculations
+            deadtime:           detector deadtime used to correct counter values 
+                                (s)
+            baseline_correct:   use this many bins on either end of each scan to
+                                estimate the baseline slope on a scan-by-scan 
+                                basis. Set to zero to disable. 
             
         Asymmetry calculation outline (with default detectors) ---------------
         
@@ -1378,20 +1432,22 @@ class bdata(mdata):
                      nLR is the right counter tagged with !alphas, 
                                           
         Status of Data Corrections --------------------------------------------
-            SLR/2H: 
+            MODE 2 (TD): 
                 Removes prebeam bins. 
-                
                 Provides the option of deadtime correction. Set to zero to disable.
-                
                 Rebinning: 
                     returned time is average time over rebin range
                     returned asym is weighted mean
                 
-            1F/1W/1X: 
+            MODE 1 (TI): 
                 Allows manual removal of unwanted bins. 
-                
                 Provides the option of deadtime correction. Set to zero to disable.
-                
+                Baseline correction:
+                    Fit the baseline on a scan-by-scan basis with a linear line 
+                    and subtract from the data to flatten. Add back the 
+                    baseline average pre-flatten to keep baseline value 
+                    approximately the same. Requires removal of incomplete scans
+                Remove incomplete scans. 
                 Scan Combination:
                     Multiscans are considered as a single scan with long 
                     integration time. Histogram bins are summed according to 
@@ -1400,10 +1456,6 @@ class bdata(mdata):
                     In the case of split counter asymmetries, we take the mean
                     of the non-zero counts in each bin, with errors treated still
                     as Possionian.
-            
-            1N:
-                Same as 1F. Use the neutral beam monitor values to calculate 
-                asymetries in the case of 8Li. 
              
             2E: 
                 Prebeam bin removal. 
@@ -1425,7 +1477,7 @@ class bdata(mdata):
                     
         Option List
         
-            SLR DESCRIPTIONS --------------------------------------------------
+            MODE 2 DESCRIPTIONS -----------------------------------------------
             
             "":     dictionary of 2D numpy arrays keyed by 
                         {"p", "n", "c", "time_s"} for each helicity and combination 
@@ -1452,7 +1504,7 @@ class bdata(mdata):
                 helicity respectively. Only in 2h mode. 
                         
             
-            1F/1N/1W DESCRIPTIONS ---------------------------------------------------
+            MODE 1 DESCRIPTIONS -----------------------------------------------
             
                 all options can include a space deliminated list of bins or 
                 ranges of bins which will be omitted. ex: "raw 1 2 5-20 3"
