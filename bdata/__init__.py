@@ -13,6 +13,7 @@ if sys.platform == 'win32':
 else:
     _homedir = os.environ['HOME']
 
+# define variables
 __all__ = ['bdata', 'bjoined', 'bmerged', 'life']
 __author__ = 'Derek Fujimoto'
 _mud_data = os.path.join(_homedir, '.bdata')
