@@ -856,16 +856,15 @@ class bdata(mdata):
         if self.area.lower() == 'bnqr' and 2018 <= self.year <= 2020:
             if self.year == 2020 and self.run > 45262:
                 pass
-                
             else: 
+                
+                # double check if fix is needed
+                if np.sum(np.array(d)[:, 0]) > 100:
+                    return d
+                
                 # do the fix: remove extra bin
-                for i in range(len(d)):
-                    
-                    # double check if fix is needed
-                    if d[i][0] <= 5:
-                        
-                        # fix
-                        d[i] = np.delete(d[i], [0])
+                for i in range(len(d)):                    
+                    d[i] = np.delete(d[i], [0])
         return d
                         
     # ======================================================================= #
@@ -1611,9 +1610,10 @@ class bdata(mdata):
                 for i in range(len(d)):
                     d[i][d[i]<0] = 0.
                     d[i] = np.delete(d[i], np.arange(n_prebeam))
-
+                    
                 # check and fix 2018-2020 NQR prebeam error
                 d = self._fix_prebeam_offbyone(d)
+                
                 if self.mode == '2h':
                     d_alpha = self._fix_prebeam_offbyone(d_alpha)
                                                     
@@ -1863,16 +1863,7 @@ class bdata(mdata):
         else:
             print("Unknown run type.")
             return
-            
-    # ======================================================================= #
-    def beam_kev(self, get_error=False):
-        warnings.warn('beam_kev() will be depreciated in the next major '+\
-                      'release. Use beam_keV or beam_keV_err properties instead.', 
-                      Warning)
-                      
-        if get_error:   return self.beam_keV_err
-        else:           return self.beam_keV
-    
+               
     @property
     def beam_keV(self):     return self._beam_kev()
     @property
