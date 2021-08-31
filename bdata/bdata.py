@@ -868,43 +868,59 @@ class bdata(mdata):
         return d
                         
     # ======================================================================= #
-    def _get_area_data(self, nbm=False):
-        """Get histogram list based on area type. 
-        List pattern: [1+, 1-, 2+, 2-]
+    def _get_area_data(self, nbm=False, hist_select=''):
+        """Get histogram list based on area type.
+        
+        nbm: if True, get neutral beam monitor data
+        hist_select: string of [,], [ ], [;], or [.] deliminated histogram titles
+              expected order:   'F+, F-, B+, B-'
+              or                'R+, R-, L+, L-'
+
+        such that the output list pattern is: [1+, 1-, 2+, 2-]
         where   1 = F or R and
                 2 = B or L
+        
+        Setting hist_select overrides any setting of nbm
+                
         """
         
-        hist = self.hist
-        
-        if nbm:
-            data = [hist['NBMF+'].data, \
-                    hist['NBMF-'].data, \
-                    hist['NBMB+'].data, \
-                    hist['NBMB-'].data]
+        # get histogram titles
+        if hist_select != '':
             
+            # replace deliminators with spaces
+            for delim in ', ;.':
+                hist_select = hist_select.replace(delim, ' ')
+            
+            # split into parts
+            hist_select = [h.stip() for h in hist_select.split(' ') if h]
+            
+            # check for user error
+            if len(hist_select) < 4:
+                raise InputError('hist_select must be a string of at least '+\
+                        'four histogram names deliminated by ",", "." ,";" '+\
+                        'or a space.')
+        
+        elif nbm:
+            hist_select = ('NBMF+', 'NBMF-', 'NBMB+', 'NBMB-')
+        
         elif self.area.upper() == 'BNMR':
-            data = [hist['F+'].data, \
-                    hist['F-'].data, \
-                    hist['B+'].data, \
-                    hist['B-'].data]
-        
+            hist_select = ('F+', 'F-', 'B+', 'B-')
+            
         elif self.area.upper() == 'BNQR':
-            data = [hist['R+'].data, \
-                    hist['R-'].data, \
-                    hist['L+'].data, \
-                    hist['L-'].data]
+            hist_select = ['R+', 'R-', 'L+', 'L-']
+            
+            if self.mode == '2h':
+                hist_select.extend(['AL1+', 'AL1-', 
+                                    'AL0+', 'AL0-', 
+                                    'AL3+', 'AL3-', 
+                                    'AL2+', 'AL2-'])
+        
         else:
-            data = []
-        
-        if self.mode == '2h':
-            data.extend([hist['AL1+'].data, hist['AL1-'].data, 
-                         hist['AL0+'].data, hist['AL0-'].data, 
-                         hist['AL3+'].data, hist['AL3-'].data, 
-                         hist['AL2+'].data, hist['AL2-'].data])
-        
-        # copy
-        return [np.copy(d) for d in data]
+            raise RuntimeError('Unable to fetch area data for %d.%d' % \
+                                                        (self.year, self.run))
+            
+        # get data
+        return [np.copy(self.hist[h].data) for h in hist_select]
 
     # ======================================================================= #
     def _get_asym_alpha(self, a, b):
@@ -912,6 +928,8 @@ class bdata(mdata):
             Find alpha diffusion ratios from cryo oven with alpha detectors. 
             a: list of alpha detector histograms (each helicity)
             b: list of beta  detector histograms (each helicity)
+            
+            a/b = list: [1+ 1- 2+ 2-], where 1 = F/R and 2 = B/L
         """
         
         # just  use AL0
@@ -969,6 +987,7 @@ class bdata(mdata):
     def _get_asym_bck(self, d):
         """
             Find the asymmetry of backward counter using the asymmetries. 
+            d = list: [1+ 1- 2+ 2-], where 1 = F/R and 2 = B/L
         """
         return self._get_asym_simple(d[2], d[3])
     
@@ -976,6 +995,7 @@ class bdata(mdata):
     def _get_asym_counter(self, d):
         """
             Find the asymmetry of each counter using the asymmetries. 
+            d = list: [1+ 1- 2+ 2-], where 1 = F/R and 2 = B/L
         """
         
         # forward counter
@@ -991,6 +1011,7 @@ class bdata(mdata):
     def _get_asym_fwd(self, d):
         """
             Find the asymmetry of forward counter using the asymmetries. 
+            d = list: [1+ 1- 2+ 2-], where 1 = F/R and 2 = B/L
         """
         return self._get_asym_simple(d[0], d[1])
     
@@ -998,6 +1019,7 @@ class bdata(mdata):
     def _get_asym_hel(self, d):
         """
             Find the asymmetry of each helicity. 
+            d = list: [1+ 1- 2+ 2-], where 1 = F/R and 2 = B/L
         """
         
         # positive helicity calc
@@ -1013,6 +1035,7 @@ class bdata(mdata):
     def _get_asym_comb(self, d):
         """
         Find the combined asymmetry for slr runs. Elegant 4-counter method.
+        d = list: [1+ 1- 2+ 2-], where 1 = F/R and 2 = B/L
         """
         
         # get data [1+ 1- 2+ 2-] ---> [1+ 2+ 1- 2-]
@@ -1046,6 +1069,7 @@ class bdata(mdata):
     def _get_asym_neg(self, d):
         """
             Find the negative helicity asymmetry. 
+            d = list: [1+ 1- 2+ 2-], where 1 = F/R and 2 = B/L
         """
         return self._get_asym_simple(d[1], d[3]) # input: 1+ 2+
     
@@ -1053,6 +1077,7 @@ class bdata(mdata):
     def _get_asym_pos(self, d):
         """
             Find the positive helicity asymmetry. 
+            d = list: [1+ 1- 2+ 2-], where 1 = F/R and 2 = B/L
         """
         return self._get_asym_simple(d[0], d[2]) # input: 1+ 2+
     
@@ -1330,13 +1355,14 @@ class bdata(mdata):
         return np.array([x_rebin, dx_rebin])
                  
     # ======================================================================= #
-    def _split_scan(self, freq, scan):
+    def _split_scan(self, freq, scan, omit_incomplete_scan=False):
         """
             Split an array into multiple scans by counting the number of unique 
             frequencies scanned. 
             
             freq: array of frequencies
             scan: array of asymmetry, counters, or other. 
+            omit_incomplete: if true, exclude last incomplete scan
             
             return (fsplit, ssplit) where
             
@@ -1359,8 +1385,9 @@ class bdata(mdata):
         scan_split = list(scan_complete.reshape(-1, n_pts_per_scan))
         
         # add the incomplete scan
-        freq_split.append(freq_incomplete)
-        scan_split.append(scan_incomplete)
+        if not omit_incomplete_scan:
+            freq_split.append(freq_incomplete)
+            scan_split.append(scan_incomplete)
 
         # remove empty or nan scans
         freq_final = []
@@ -1581,27 +1608,7 @@ class bdata(mdata):
             raise InputError("Option not recognized.")
         
         # get data
-        if hist_select != '':
-            
-            # split into parts
-            hist_select_temp = []
-            for histname in hist_select.split(','):
-                hist_select_temp.extend(histname.strip().split(';'))
-            hist_select = [h.strip() for h in hist_select_temp]
-            
-            # check for user error
-            if len(hist_select) < 4:
-                raise InputError('hist_select must be a string of at least '+\
-                        'four [,]-seperated or [;]-seperated histogram names')
-            
-            # get data
-            d = [self.hist[h].data for h in hist_select]
-            d_all = d
-            
-        # get default data
-        else:
-            d = self._get_area_data(nbm=nbm) # 1+ 2+ 1- 2-
-            d_all = d
+        d = self._get_area_data(nbm=nbm, hist_select=hist_select) # 1+ 2+ 1- 2-
                 
         # get alpha diffusion data and apply deadtime corrections
         if self.mode == '2h':
