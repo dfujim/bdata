@@ -1610,7 +1610,7 @@ class bdata(mdata):
         # get data
         d = self._get_area_data(nbm=nbm, hist_select=hist_select) # 1+ 2+ 1- 2-
                 
-        # get alpha diffusion data and apply deadtime corrections
+        # get alpha diffusion data
         if self.mode == '2h':
             d_alpha = d[4:]
             d = d[:4]
@@ -1653,15 +1653,9 @@ class bdata(mdata):
             elif option in ('forward_counter', 'backward_counter'):
                 h = np.array(self._get_asym_counter(d))
                 
-            # rebin time
-            time = (np.arange(len(d[0]))+0.5)*self._get_ppg('dwelltime')/1000
+            # time
+            time = self.get_time(n = len(d[0]), rebin=rebin)
             
-            if rebin > 1:
-                len_t = len(time)
-                new_t_idx = np.arange(0, len_t, rebin)
-                new_time = (np.average(time[i:i+rebin]) for i in new_t_idx)
-                time = np.fromiter(new_time, dtype=float, count=len(new_t_idx))
-
             # mode switching
             if option in ('positive', 'forward_counter'): # ---------------------------------------
                 return np.vstack([time, self._rebin(h[0], rebin)])
@@ -1884,9 +1878,12 @@ class bdata(mdata):
         else:
             print("Unknown run type.")
             return
-               
+
+    # ======================================================================= #
     @property
     def beam_keV(self):     return self._beam_kev()
+    
+    # ======================================================================= #
     @property
     def beam_keV_err(self): return self._beam_kev(get_error=True)
     
@@ -1970,11 +1967,32 @@ class bdata(mdata):
             else:               return np.array(output)
         
     # ======================================================================= #
-    def get_pulse_s(self):
-        warnings.warn('get_pulse_s() will be depreciated in the next major '+\
-                      'release. Use pulse_s property instead.', Warning)
-        return self.pulse_s
+    def get_time(self, n=0, rebin=1):
+        """
+            Get the time axis in mode 2 runs (bin centers)
+            
+            n = number of bins (ex: len(hist['B+'])
+            rebin = how to average the time bins
+        """
         
+        # get n from ppg parameters
+        if n <= 0:
+            beam_on = self._get_ppg('beam_on')
+            beam_off = self._get_ppg('beam_off')
+            n = beam_on + beam_off
+        
+        # get time array    
+        time = (np.arange(n)+0.5)*self._get_ppg('dwelltime')/1000
+        
+        # rebin time
+        if rebin > 1:
+            new_t_idx = np.arange(0, n, rebin)
+            new_time = (np.average(time[i:i+rebin]) for i in new_t_idx)
+            time = np.fromiter(new_time, dtype=float, count=len(new_t_idx))
+            
+        return time
+        
+    # ======================================================================= #
     @property
     def pulse_s(self):        
         """Get pulse duration in seconds, for pulsed measurements."""
