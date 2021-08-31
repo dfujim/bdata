@@ -445,36 +445,28 @@ class bdata(mdata):
                 'adif'                  :'alpha_diffusion',
                 'ad'                    :'alpha_diffusion',
                 'adiff'                 :'alpha_diffusion',
-                'alpha_diffusion'       :'alpha_diffusion',
                 
                 'atag'                  :'alpha_tagged',
                 'at'                    :'alpha_tagged',
-                'alpha_tagged'          :'alpha_tagged',
                 
                 'b'                     :'backward_counter',
                 'bck'                   :'backward_counter',
-                'backward_counter'      :'backward_counter',
                 'left'                  :'backward_counter',
                 'left_counter'          :'backward_counter',
                 
                 'c'                     :'combined',
                 'com'                   :'combined',
-                'combined'              :'combined',
                 
                 'cntr'                  :'counter',
-                'counter'               :'counter',
                 
                 'dif_c'                 :'difference_combined', 
                 'dc'                    :'difference_combined', 
-                'difference_combined'   :'difference_combined', 
                 
                 'dif_h'                 :'difference_helicity',
                 'dh'                    :'difference_helicity',
-                'difference_helicity'   :'difference_helicity',
                 
                 'f'                     :'forward_counter',
                 'fwd'                   :'forward_counter',
-                'forward_counter'       :'forward_counter',
                 'right'                 :'forward_counter',
                 'right_counter'         :'forward_counter',
                 
@@ -483,39 +475,33 @@ class bdata(mdata):
                 'u'                     :'positive', 
                 'p'                     :'positive',
                 'pos'                   :'positive', 
-                'positive'              :'positive',
                 
                 '-'                     :'negative',
                 'down'                  :'negative', 
                 'd'                     :'negative',
                 'n'                     :'negative',
                 'neg'                   :'negative',
-                'negative'              :'negative',
                 
                 'h'                     :'helicity',
                 'hel'                   :'helicity',
-                'helicity'              :'helicity',
                 
                 'r'                     :'raw',
-                'raw'                   :'raw',
+                
+                'rs'                    :'raw_split_scan',
                 
                 'raw_c'                 :'raw_combined',
                 'rc'                    :'raw_combined',
-                'raw_combined'          :'raw_combined',
                 
                 'raw_h'                 :'raw_helicity',
                 'rh'                    :'raw_helicity',
-                'raw_helicity'          :'raw_helicity',
                 
                 'sl_c'                  :'slope_combined',
                 'slc'                   :'slope_combined', 
                 'sc'                    :'slope_combined',
-                'slope_combined'        :'slope_combined',
                 
                 'sl_h'                  :'slope_helicity',
                 'slh'                   :'slope_helicity',
                 'sh'                    :'slope_helicity',
-                'slope_helicity'        :'slope_helicity',
     }
     
     # output keys for mode TI runs
@@ -1314,6 +1300,40 @@ class bdata(mdata):
         return self.hist[xlabel].data
             
     # ======================================================================= #
+    def _kill_bins(self, d, ranges):
+        """
+            Set counter values to zero based on user-input ranges
+            
+            d: list of histogram counters
+            ranges: string of indices or ranges of indices (ex: 1-10, which is 
+                    inclusive) which are used to zero bins and remove them from
+                    the final asymmetry calculation
+        """
+
+        bin_ranges = []
+        for b in ranges:
+            if not '-' in b:
+                bin_ranges.append(int(b))
+            else:
+                one = int(b.split('-')[0])
+                two = int(b.split('-')[1])
+                bin_ranges.extend(np.arange(one, two+1))
+        
+        # kill bins
+        for i in range(len(d)):
+
+            # get good bin range
+            if len(bin_ranges) > 0:
+                bin_ranges = np.array(bin_ranges)
+                idx = (bin_ranges>=0)*(bin_ranges<len(d[i]))
+                bin_ranges = bin_ranges[idx]
+
+            # kill
+            d[i][bin_ranges] = 0.
+            
+        return d
+        
+    # ======================================================================= #
     def _rebin(self, xdx, rebin):
         """
             Rebin array x with weights 1/dx**2 by factor rebin.
@@ -1364,51 +1384,63 @@ class bdata(mdata):
             scan: array of asymmetry, counters, or other. 
             omit_incomplete: if true, exclude last incomplete scan
             
-            return (fsplit, ssplit) where
+            return (bsplit, fsplit, ssplit) where
             
             fsplit and ssplit are lists of arrays with each entry corresponding 
             to a scan
+            bsplit is the bin indices for plotting consecutive scans
         """
+
+        # make bins 
+        bins = np.arange(len(freq))
 
         # chop off the last incomplete scan
         n_pts_per_scan = len(np.unique(freq))
         n_total = len(scan)
         n_full = n_total - n_total % n_pts_per_scan
         
+        bins_complete = bins[:n_full]
+        bins_incomplete = bins[n_full:]
+        
         freq_complete = freq[:n_full]
         freq_incomplete = freq[n_full:]
+        
         scan_complete = scan[:n_full]
         scan_incomplete = scan[n_full:]
         
         # split scan
+        bins_split = list(bins_complete.reshape(-1, n_pts_per_scan))
         freq_split = list(freq_complete.reshape(-1, n_pts_per_scan))
         scan_split = list(scan_complete.reshape(-1, n_pts_per_scan))
         
         # add the incomplete scan
         if not omit_incomplete_scan:
+            bins_split.append(bins_incomplete)
             freq_split.append(freq_incomplete)
             scan_split.append(scan_incomplete)
 
         # remove empty or nan scans
+        bins_final = []
         freq_final = []
         scan_final = []
         for i in range(len(scan_split)):
             
             sm = np.sum(scan_split[i])
             
-            if sm == 0 or not np.isnan(sm):
+            if sm > 0 and not np.isnan(sm):
+                bins_final.append(bins_split[i])
                 freq_final.append(freq_split[i])
                 scan_final.append(scan_split[i])
             
-        return (freq_final, scan_final)
+        return (bins_final, freq_final, scan_final)
     
     # ======================================================================= #
     def asym(self, option="", omit="", rebin=1, hist_select='', nbm=False, 
-             deadtime=0, baseline_correct=0):
+             deadtime=0, baseline_bins=0, omit_incomplete_scan=False):
         """Calculate and return the asymmetry for various run types. 
            
         usage: asym(option="", omit="", rebin=1, hist_select='', nbm=False, 
-                    deadtime=0, baseline_correct=0)
+                    deadtime=0, baseline_bins=0)
             
         Inputs:
             option:             see below for details
@@ -1425,7 +1457,7 @@ class bdata(mdata):
             nbm:                if True, use neutral beams in calculations
             deadtime:           detector deadtime used to correct counter values 
                                 (s)
-            baseline_correct:   use this many bins on either end of each scan to
+            baseline_bins:      use this many bins on either end of each scan to
                                 estimate the baseline slope on a scan-by-scan 
                                 basis. Set to zero to disable. 
             
@@ -1555,6 +1587,9 @@ class bdata(mdata):
             "r":    Dictionary of 2D numpy arrays keyed by {p, n} for each 
                         helicity (val, err), but listed by bin, not combined by 
                         frequency. 
+            "rs":   Dictionary of 2D numpy arrays keyed by {p, n} for each 
+                        helicity (val, err), but listed by bin, not combined by 
+                        frequency. Split by scan number.
             "h":    get unshifted +/- helicity scan-combined asymmetries as a 
                         dictionary {'p':(val, err), 'n':(val, err), 'freq'}
             "p":    get pos helicity states as tuple, combined by frequency 
@@ -1602,10 +1637,7 @@ class bdata(mdata):
         
         # Option reduction
         option = option.lower()
-        try:
-            option = self.option[option]
-        except KeyError:
-            raise InputError("Option not recognized.")
+        option = self.option.get(option, option)
         
         # get data
         d = self._get_area_data(nbm=nbm, hist_select=hist_select) # 1+ 2+ 1- 2-
@@ -1641,7 +1673,7 @@ class bdata(mdata):
             # deadtime correction
             d = self._correct_deadtime(d, deadtime)
             
-            # do alpha background subtractions
+            # delete alpha prebeam bins
             if self.mode == '2h':    
                 for i in range(len(d_alpha)):
                     d_alpha[i][d_alpha[i]<0] = 0.
@@ -1749,33 +1781,13 @@ class bdata(mdata):
             # deadtime correction
             d = self._correct_deadtime(d, deadtime)
             
-            # get bins to kill
-            bin_ranges_str = further_options 
-            bin_ranges = []
-            for b in bin_ranges_str:
-                if not '-' in b:
-                    bin_ranges.append(int(b))
-                else:
-                    one = int(b.split('-')[0])
-                    two = int(b.split('-')[1])
-                    bin_ranges.extend(np.arange(one, two+1))
-            
-            # kill bins
-            for i in range(len(d)):
-
-                # get good bin range
-                if len(bin_ranges) > 0:
-                    bin_ranges = np.array(bin_ranges)
-                    idx = (bin_ranges>=0)*(bin_ranges<len(d[i]))
-                    bin_ranges = bin_ranges[idx]
-
-                # kill
-                d[i][bin_ranges] = 0.
+            # set bins to zero based on user input (exclude from final calculation)
+            d = self._kill_bins(d, ranges=further_options)
             
             # get frequency
             freq = self._get_xhist()
             
-            # mode switching
+            # get raw scans
             if option =='raw':
                 a = self._get_asym_hel(d)
                 out = mdict()
@@ -1783,6 +1795,26 @@ class bdata(mdata):
                 out['n'] = np.array(a[1])
                 out[xlab] = np.array(freq)
                 return out 
+                
+            elif option == 'raw_split_scan':
+                a = self._get_asym_hel(d)
+                
+                # split scans
+                _, _, ap = self._split_scan(freq, a[0][0], omit_incomplete_scan)
+                bins_p, freq_p, dap = self._split_scan(freq, a[0][1], omit_incomplete_scan)
+                _, _, an = self._split_scan(freq, a[1][0], omit_incomplete_scan)
+                bins_n, freq_n, dan = self._split_scan(freq, a[1][1], omit_incomplete_scan)
+                
+                # output
+                out = mdict()
+                out['bin_p'] = bins_p
+                out['bin_n'] = bins_n
+                out['p'] = np.array([ap, dap], dtype=object)
+                out['n'] = np.array([an, dan], dtype=object)
+                out[xlab + '_p'] = np.array(freq_p, dtype=object)
+                out[xlab + '_n'] = np.array(freq_n, dtype=object)
+                return out 
+                
             elif option in ('counter', 'forward_counter', 'backward_counter'):
                 freq, d_cntr = self._get_1f_mean_scans(d, freq)
             elif option == '':
