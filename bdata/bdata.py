@@ -870,8 +870,9 @@ class bdata(mdata):
     # ======================================================================= #
     def _get_area_data(self, nbm=False):
         """Get histogram list based on area type. 
-        List pattern: [type1_hel+, type1_hel-, type2_hel+, type2_hel-]
-        where type1/2 = F/B or R/L in that order.
+        List pattern: [1+, 1-, 2+, 2-]
+        where   1 = F or R and
+                2 = B or L
         """
         
         hist = self.hist
@@ -904,109 +905,6 @@ class bdata(mdata):
         
         # copy
         return [np.copy(d) for d in data]
-
-    # ======================================================================= #
-    def _get_asym_cntr(self, d):
-        """
-            Find the asymmetry of each counter using the asymmetries. 
-        """
-        
-        # get data [1+ 1- 2+ 2-] ---> [1+ 1- 2+  2-]
-        d0 = d[0]; d1 = d[1]; d2 = d[2]; d3 = d[3]
-
-        # pre-calcs
-        denom1 = d0+d1; 
-        denom2 = d2+d3
-        
-        # check for div by zero
-        denom1[denom1==0] = np.nan          
-        denom2[denom2==0] = np.nan
-        
-        # asymmetries in both helicities
-        asym = [(d0-d1)/denom1, 
-                (d2-d3)/denom2]
-                    
-        # errors 
-        # https://www.wolframalpha.com/input/?i=%E2%88%9A(F*(derivative+of+((F-B)%2F(F%2BB))+with+respect+to+F)%5E2+%2B+B*(derivative+of+((F-B)%2F(F%2BB))+with+respect+to+B)%5E2)
-        asym_err = [2*np.sqrt(d0*d1/np.power(denom1, 3)), 
-                    2*np.sqrt(d2*d3/np.power(denom2, 3))]
-        
-        # remove nan            
-        for i in range(2):
-            asym[i][np.isnan(asym[i])] = 0.
-            asym_err[i][np.isnan(asym_err[i])] = 0.
-        
-        # exit
-        return [[asym[0], asym_err[0]],  
-                [asym[1], asym_err[1]]]  
-    
-    # ======================================================================= #
-    def _get_asym_hel(self, d):
-        """
-            Find the asymmetry of each helicity. 
-        """
-        
-        # get data [1+ 1- 2+ 2-] ---> [1+ 2+ 1- 2-]
-        d0 = d[0]; d1 = d[2]; d2 = d[1]; d3 = d[3]
-
-        # pre-calcs
-        denom1 = d0+d1; 
-        denom2 = d2+d3
-        
-        # check for div by zero
-        denom1[denom1==0] = np.nan          
-        denom2[denom2==0] = np.nan
-        
-        # asymmetries in both helicities
-        asym_hel = [(d0-d1)/denom1, 
-                    (d2-d3)/denom2]
-                    
-        # errors 
-        # https://www.wolframalpha.com/input/?i=%E2%88%9A(F*(derivative+of+((F-B)%2F(F%2BB))+with+respect+to+F)%5E2+%2B+B*(derivative+of+((F-B)%2F(F%2BB))+with+respect+to+B)%5E2)
-        asym_hel_err = [2*np.sqrt(d0*d1/np.power(denom1, 3)), 
-                        2*np.sqrt(d2*d3/np.power(denom2, 3))]
-        
-        # remove nan            
-        for i in range(2):
-            asym_hel[i][np.isnan(asym_hel[i])] = 0.
-            asym_hel_err[i][np.isnan(asym_hel_err[i])] = 0.
-        
-        # exit
-        return [[asym_hel[0], asym_hel_err[0]],  
-                [asym_hel[1], asym_hel_err[1]]]  
-                
-    # ======================================================================= #
-    def _get_asym_comb(self, d):
-        """
-        Find the combined asymmetry for slr runs. Elegant 4-counter method.
-        """
-        
-        # get data [1+ 1- 2+ 2-] ---> [1+ 2+ 1- 2-]
-        d0 = d[0]; d1 = d[2]; d2 = d[1]; d3 = d[3]
-        
-        # pre-calcs
-        r_denom = d0*d3
-        r_denom[r_denom==0] = np.nan
-        r = np.sqrt((d1*d2/r_denom))
-        r[r==-1] = np.nan
-    
-        # combined asymmetry
-        asym_comb = (r-1)/(r+1)
-        
-        # check for div by zero
-        d0[d0==0] = np.nan                  
-        d1[d1==0] = np.nan
-        d2[d2==0] = np.nan
-        d3[d3==0] = np.nan
-        
-        # error in combined asymmetry
-        asym_comb_err = r*np.sqrt(1/d1 + 1/d0 + 1/d3 + 1/d2)/np.square(r+1)
-        
-        # replace nan with zero 
-        asym_comb[np.isnan(asym_comb)] = 0.
-        asym_comb_err[np.isnan(asym_comb_err)] = 0.
-        
-        return [asym_comb, asym_comb_err]
 
     # ======================================================================= #
     def _get_asym_alpha(self, a, b):
@@ -1066,7 +964,123 @@ class bdata(mdata):
 
         # make output
         return (hel_coin, hel_no_coin, hel_reg, com_coin, com_no_coin, com_reg)
+    
+    # ======================================================================= #
+    def _get_asym_bck(self, d):
+        """
+            Find the asymmetry of backward counter using the asymmetries. 
+        """
+        return self._get_asym_simple(d[2], d[3])
+    
+    # ======================================================================= #
+    def _get_asym_counter(self, d):
+        """
+            Find the asymmetry of each counter using the asymmetries. 
+        """
+        
+        # forward counter
+        fwd = self._get_asym_fwd(d) # input: 1+ 1-
+        
+        # backward counter 
+        bck = self._get_asym_bck(d) # input: 2+ 2-
 
+        # exit
+        return [fwd, bck]  
+        
+    # ======================================================================= #
+    def _get_asym_fwd(self, d):
+        """
+            Find the asymmetry of forward counter using the asymmetries. 
+        """
+        return self._get_asym_simple(d[0], d[1])
+    
+    # ======================================================================= #
+    def _get_asym_hel(self, d):
+        """
+            Find the asymmetry of each helicity. 
+        """
+        
+        # positive helicity calc
+        pos = self._get_asym_pos(d)
+        
+        # negative helicity calc
+        neg = self._get_asym_neg(d)
+
+        # exit
+        return [pos, neg]
+                
+    # ======================================================================= #
+    def _get_asym_comb(self, d):
+        """
+        Find the combined asymmetry for slr runs. Elegant 4-counter method.
+        """
+        
+        # get data [1+ 1- 2+ 2-] ---> [1+ 2+ 1- 2-]
+        d0 = d[0]; d1 = d[2]; d2 = d[1]; d3 = d[3]
+        
+        # pre-calcs
+        r_denom = d0*d3
+        r_denom[r_denom==0] = np.nan
+        r = np.sqrt((d1*d2/r_denom))
+        r[r==-1] = np.nan
+    
+        # combined asymmetry
+        asym_comb = (r-1)/(r+1)
+        
+        # check for div by zero
+        d0[d0==0] = np.nan                  
+        d1[d1==0] = np.nan
+        d2[d2==0] = np.nan
+        d3[d3==0] = np.nan
+        
+        # error in combined asymmetry
+        asym_comb_err = r*np.sqrt(1/d1 + 1/d0 + 1/d3 + 1/d2)/np.square(r+1)
+        
+        # replace nan with zero 
+        asym_comb[np.isnan(asym_comb)] = 0.
+        asym_comb_err[np.isnan(asym_comb_err)] = 0.
+        
+        return [asym_comb, asym_comb_err]
+
+    # ======================================================================= #
+    def _get_asym_neg(self, d):
+        """
+            Find the negative helicity asymmetry. 
+        """
+        return self._get_asym_simple(d[1], d[3]) # input: 1+ 2+
+    
+    # ======================================================================= #
+    def _get_asym_pos(self, d):
+        """
+            Find the positive helicity asymmetry. 
+        """
+        return self._get_asym_simple(d[0], d[2]) # input: 1+ 2+
+    
+    # ======================================================================= #
+    def _get_asym_simple(self, F, B):
+        """
+            Do the simple asymmetry calculation: F-B / F+B
+        """
+        
+        # pre-calcs
+        denom = F+B; 
+        
+        # check for div by zero
+        denom[denom==0] = np.nan          
+        
+        # asymmetries
+        asym = (F-B)/denom
+                    
+        # errors 
+        # https://www.wolframalpha.com/input/?i=%E2%88%9A(F*(derivative+of+((F-B)%2F(F%2BB))+with+respect+to+F)%5E2+%2B+B*(derivative+of+((F-B)%2F(F%2BB))+with+respect+to+B)%5E2)
+        asym_err = 2*np.sqrt(F*B/np.power(denom, 3))
+        
+        # remove nan            
+        asym[np.isnan(asym)] = 0.
+        asym_err[np.isnan(asym_err)] = 0.
+        
+        return [asym, asym_err]
+    
     # ======================================================================= #
     def _get_1f_sum_scans(self, d, freq):
         """
@@ -1630,7 +1644,7 @@ class bdata(mdata):
             if option not in ('combined', 'forward_counter', 'backward_counter'):
                 h = np.array(self._get_asym_hel(d))
             elif option in ('forward_counter', 'backward_counter'):
-                h = np.array(self._get_asym_cntr(d))
+                h = np.array(self._get_asym_counter(d))
                 
             # rebin time
             time = (np.arange(len(d[0]))+0.5)*self._get_ppg('dwelltime')/1000
@@ -1658,10 +1672,10 @@ class bdata(mdata):
             elif option == 'counter': # -------------------------------------
                 out = mdict()
                 
-                if self.area == 'BNMR':
+                if self.area.upper() == 'BNMR':
                     out['f'] = self._rebin(h[0], rebin)
                     out['b'] = self._rebin(h[1], rebin)
-                elif self.area == 'BNQR':
+                elif self.area.upper() == 'BNQR':
                     out['r'] = self._rebin(h[0], rebin)
                     out['l'] = self._rebin(h[1], rebin)
                     
@@ -1706,16 +1720,16 @@ class bdata(mdata):
             else:
                 h = np.array(self._get_asym_hel(d))
                 c = np.array(self._get_asym_comb(d))
-                ctr = np.array(self._get_asym_cntr(d))
+                ctr = np.array(self._get_asym_counter(d))
                 
                 out = mdict()
                 out['p'] = self._rebin(h[0], rebin)
                 out['n'] = self._rebin(h[1], rebin)
                 
-                if self.area == 'BNMR':
+                if self.area.upper() == 'BNMR':
                     out['f'] = self._rebin(h[0], rebin)
                     out['b'] = self._rebin(h[1], rebin)
-                elif self.area == 'BNQR':
+                elif self.area.upper() == 'BNQR':
                     out['r'] = self._rebin(h[0], rebin)
                     out['l'] = self._rebin(h[1], rebin)
                 
@@ -1792,21 +1806,21 @@ class bdata(mdata):
                 return out
             
             elif option == 'positive':
-                a = self._get_asym_hel(d)
-                return np.vstack([freq, self._rebin(a[0], rebin)])
+                a = self._get_asym_pos(d)
+                return np.vstack([freq, self._rebin(a, rebin)])
             
             elif option == 'negative':
-                a = self._get_asym_hel(d)
-                return np.vstack([freq, self._rebin(a[1], rebin)])
+                a = self._get_asym_neg(d)
+                return np.vstack([freq, self._rebin(a, rebin)])
             
             elif option == 'counter':
-                a = self._get_asym_cntr(d_cntr)
+                a = self._get_asym_counter(d_cntr)
                 out = mdict()
                 
-                if self.area == 'BNMR':
+                if self.area.upper() == 'BNMR':
                     out['f'] = self._rebin(a[0], rebin)
                     out['b'] = self._rebin(a[1], rebin)
-                elif self.area == 'BNQR':
+                elif self.area.upper() == 'BNQR':
                     out['r'] = self._rebin(a[0], rebin)
                     out['l'] = self._rebin(a[1], rebin)
                     
@@ -1814,12 +1828,12 @@ class bdata(mdata):
                 return out
             
             elif option == 'forward_counter':
-                a = self._get_asym_cntr(d_cntr)
-                return np.vstack([freq, self._rebin(a[0], rebin)])
+                a = self._get_asym_fwd(d_cntr)
+                return np.vstack([freq, self._rebin(a, rebin)])
             
             elif option == 'backward_counter':
-                a = self._get_asym_cntr(d_cntr)
-                return np.vstack([freq, self._rebin(a[1], rebin)])
+                a = self._get_asym_bck(d_cntr)
+                return np.vstack([freq, self._rebin(a, rebin)])
             
             elif option in ['combined']:
                 a = self._get_asym_comb(d)
@@ -1828,7 +1842,7 @@ class bdata(mdata):
             else:
                 ah = self._get_asym_hel(d)
                 ac = self._get_asym_comb(d)
-                ctr = self._get_asym_cntr(d_cntr)
+                ctr = self._get_asym_counter(d_cntr)
                 
                 out = mdict()
                 out['p'] = self._rebin(ah[0], rebin)
