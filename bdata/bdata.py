@@ -1832,7 +1832,7 @@ class bdata(mdata):
             nbm:                if True, use neutral beams in calculations
             deadtime:           detector deadtime used to correct counter values 
                                 (s)
-            scan_repair_options:string with format %d:%s:%s'
+            scan_repair_options:string with format %d:%s:%s ... etc'
             
                                 possible values: 
                                     
@@ -1851,6 +1851,12 @@ class bdata(mdata):
                                             baseline slopes in order to ensure 
                                             that the final scan-combined 
                                             asymmetry has a flat baseline
+                                            
+                                    scan comb: one of 'scan_sum', 'scan_mean', 
+                                            'scan_raw', to dictate how scans are 
+                                            combined. Functions are applied to 
+                                            raw counts, not asym. 
+                                            Default: scan_sum
                                 
             baseline_bins:      
             
