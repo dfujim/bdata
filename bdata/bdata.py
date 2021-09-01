@@ -1113,19 +1113,15 @@ class bdata(mdata):
         return self._get_asym_simple(d[1], d[3]) # input: 1+ 2+
     
     # ======================================================================= #
-    def _get_asym_pos(self, d, freq=None, options=''):
+    def _correct_baseline_simple(self, freq, F, B, options):
         """
-            Find the positive helicity asymmetry. 
+            Correct sloped scan baseline in the case of simple asym calculation 
             d = list: [1+ 1- 2+ 2-], where 1 = F/R and 2 = B/L
         """
         
-        # get the relevant counters
-        F = np.copy(d[0])
-        B = np.copy(d[2])
-               
         if options:
             
-            # parse options
+            # parse options            
             options = options.split(':')
             options = list(map(str.strip, options))
             
@@ -1223,10 +1219,28 @@ class bdata(mdata):
                 
         # combine scans
         freq, (F, B) = self._get_1f_sum_scans([F, B], freq)
+        
+        # get asym
+        a, da = self._get_asym_simple(F, B)
+        
+        return (freq, (a, da))
+        
+    # ======================================================================= #
+    def _get_asym_pos(self, d, freq=None, options=''):
+        """
+            Find the positive helicity asymmetry. 
+            d = list: [1+ 1- 2+ 2-], where 1 = F/R and 2 = B/L
+        """
+        
+        # get the relevant counters
+        F = np.copy(d[0])
+        B = np.copy(d[2])
+        
+        if '1' in self.mode: 
+            return self._correct_baseline_simple(freq, F, B, options)
+        elif '2' in self.mode:
+            return self._get_asym_simple(F, B)    
             
-        # return asymmetry
-        return (freq, self._get_asym_simple(F, B)) # input: 1+ 2+
-    
     # ======================================================================= #
     def _get_asym_simple(self, F, B):
         """
