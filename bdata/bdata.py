@@ -14,6 +14,7 @@ from .containers import hdict, vdict
 from mudpy import mdata
 from mudpy.containers import mdict, mvar, mhist
 from iminuit import Minuit
+from scipy.optimize import curve_fit
 
 __doc__="""
     Beta-data module. The bdata object is largely a data container, designed to 
@@ -854,6 +855,56 @@ class bdata(mdata):
         return d
                         
     # ======================================================================= #
+    def _get_baseline_slope(self, freq, scan, dscan, baseline_bins):
+        """
+            Flatten the baseline of a single scan by fitting it to a linear line 
+            and subtracting the slope (then adding back the line mean). 
+            
+            freq: array of frequencies
+            scan: array of values to fix
+            dscan: array of errors
+            baseline_bins: int, number of bins on either end to use in the 
+                           baseline fitting. Should exclude any resonance peaks. 
+        """
+        
+        # simple return
+        if baseline_bins < 0:
+            return scan
+        
+        # get indices to crop 
+        bins = np.arange(len(freq))
+        
+        # sort freq and scan by freq
+        idx = np.argsort(freq)
+        freq = np.array(freq)[idx]
+        scan = np.array(scan)[idx]
+        dscan = np.array(dscan)[idx]
+        
+        # crop out center
+        low = baseline_bins
+        high = len(freq) - baseline_bins
+        
+        freq2 = np.concatenate((freq[:low], freq[high:]))
+        scan2 = np.concatenate((scan[:low], scan[high:]))
+        dscan2 = np.concatenate((dscan[:low], dscan[high:]))
+        
+        # estimate starting baseline parameters
+        s_start = np.mean(scan[:low])
+        s_end = np.mean(scan[high:])
+
+        slope = (s_end - s_start)/(freq2[-1] - freq2[0])
+        offset = s_start - slope * freq2[0]
+
+        # fit
+        fitfn = lambda x, a, b: a*x + b
+        par, cov = curve_fit(fitfn, freq2, scan2, sigma=dscan2, 
+                             absolute_sigma=True)
+        std = np.diag(cov)**0.5
+        
+        # baseline slope
+        return par[0]
+        
+    # ======================================================================= #
     def _get_area_data(self, nbm=False, hist_select=''):
         """Get histogram list based on area type.
         
@@ -994,13 +1045,15 @@ class bdata(mdata):
         return [fwd, bck]  
         
     # ======================================================================= #
-    def _get_asym_fwd(self, d):
+    def _get_asym_fwd(self, d, baseline_bins=0, freq=None):
         """
             Find the asymmetry of forward counter using the asymmetries. 
             d = list: [1+ 1- 2+ 2-], where 1 = F/R and 2 = B/L
         """
-        return self._get_asym_simple(d[0], d[1])
-    
+        
+        # get asymmetry
+        return self._get_asym_simple(d[0], d[1], baseline_bins=0, freq=None)
+        
     # ======================================================================= #
     def _get_asym_hel(self, d):
         """
@@ -1060,12 +1113,119 @@ class bdata(mdata):
         return self._get_asym_simple(d[1], d[3]) # input: 1+ 2+
     
     # ======================================================================= #
-    def _get_asym_pos(self, d):
+    def _get_asym_pos(self, d, freq=None, options=''):
         """
             Find the positive helicity asymmetry. 
             d = list: [1+ 1- 2+ 2-], where 1 = F/R and 2 = B/L
         """
-        return self._get_asym_simple(d[0], d[2]) # input: 1+ 2+
+        
+        # get the relevant counters
+        F = np.copy(d[0])
+        B = np.copy(d[2])
+               
+        if options:
+            
+            # parse options
+            options = options.split(':')
+            options = list(map(str.strip, options))
+            
+            baseline_bins = 0
+            for opt in options:
+                try:
+                    baseline_bins = int(opt)
+                except ValueError:
+                    pass
+                except:
+                    break
+                
+            omit_incomplete_scan = 'omit' in options
+            flatten_final_asym = 'overcorrect' in options
+            
+            if flatten_final_asym and not baseline_bins:
+                raise RuntimeError("If overcorrection specified, must "+\
+                                   "include number of bins to estimate "+\
+                                   "baseline corrction")
+            
+            # split into scans
+            _, freq_spl, F_spl = self._split_scan(freq, F, omit_incomplete_scan)
+            _, freq_spl, B_spl = self._split_scan(freq, B, omit_incomplete_scan)
+            
+            # correct baseline 
+            if baseline_bins: 
+                slopes = []
+                asym = []
+                
+                # iterate on scans, fix each in turn
+                for f, b, fq in zip(F_spl, B_spl, freq_spl):
+                
+                    # get pre-modified asym
+                    a, da = self._get_asym_simple(f, b)    
+                    
+                    # get slopes
+                    sl = self._get_baseline_slope(fq, a, da, baseline_bins)
+                    slopes.append(sl)
+                    asym.append(a)
+                    
+                # do correction
+                def do_correction(factor=1):
+                    # fix the forward counter to get the correct resulting ratio
+                    F_spl = []
+                    for a, sl, b, fq in zip(asym, slopes, B_spl, freq_spl):                    
+                        g = a + factor*sl*(np.mean(fq) - fq)
+                        F_spl.append((1+g)/(1-g) * b)
+                    
+                    # concat
+                    F = np.concatenate(F_spl)
+                    B = np.concatenate(B_spl)
+                    freq = np.concatenate(freq_spl)
+                    
+                    # combine
+                    freq, (F, B) = self._get_1f_sum_scans([F, B], freq)
+                    
+                    # get asym
+                    a, da = self._get_asym_simple(F, B)
+                    
+                    return (freq, a ,da)
+                
+                def get_factor(factor=1):
+                    
+                    freq, a, da = do_correction(factor)
+                    
+                    # get slope
+                    sl = self._get_baseline_slope(freq, a, da, baseline_bins)
+                    
+                    return abs(sl*np.mean(freq))
+                
+                # get overcorrection
+                factor = 1
+                if flatten_final_asym:    
+                    m = Minuit(get_factor, factor=1)
+                    m.errordef = 1
+                    m.migrad()
+                    
+                    if m.valid:
+                        factor = m.values[0]
+                        print('%d.%d: found overcorrection factor of %f' % \
+                                (self.year, self.run, factor))
+                    else:
+                        print('%d.%d: overcorrection estimation failed' % \
+                                (self.year, self.run))
+                                
+                # do correction again with factor
+                freq, a, da = do_correction(factor)                
+                
+                return (freq, (a, da))
+
+            # concat scans
+            F = np.concatenate(F_spl)
+            B = np.concatenate(B_spl)
+            freq = np.concatenate(freq_spl)
+                
+        # combine scans
+        freq, (F, B) = self._get_1f_sum_scans([F, B], freq)
+            
+        # return asymmetry
+        return (freq, self._get_asym_simple(F, B)) # input: 1+ 2+
     
     # ======================================================================= #
     def _get_asym_simple(self, F, B):
@@ -1089,26 +1249,9 @@ class bdata(mdata):
         # remove nan            
         asym[np.isnan(asym)] = 0.
         asym_err[np.isnan(asym_err)] = 0.
-        
+         
         return [asym, asym_err]
     
-    # ======================================================================= #
-    def _get_1f_sum_scans(self, d, freq):
-        """
-            Sum counts in each frequency bin over 1f scans, excluding zero. 
-        """
-        
-        # make data frame
-        df = pd.DataFrame({i:d[i] for i in range(len(d))})
-        df['x'] = freq
-        
-        # combine scans: values with same frequency 
-        df = df.groupby('x').sum()
-        x = df.index.values
-        d = df.values.T
-        
-        return (x, d)
-        
     # ======================================================================= #
     def _get_1f_mean_scans(self, d, freq):
         """
@@ -1126,7 +1269,24 @@ class bdata(mdata):
         d = df.values.T
         
         return (x, d)
+    
+    # ======================================================================= #
+    def _get_1f_sum_scans(self, d, freq):
+        """
+            Sum counts in each frequency bin over 1f scans, excluding zero. 
+        """
         
+        # make data frame
+        df = pd.DataFrame({i:d[i] for i in range(len(d))})
+        df['x'] = freq
+        
+        # combine scans: values with same frequency 
+        df = df.groupby('x').sum()
+        x = df.index.values
+        d = df.values.T
+        
+        return (x, d)
+            
     # ======================================================================= #
     def _get_2e_asym(self):
         """
@@ -1391,6 +1551,10 @@ class bdata(mdata):
             bsplit is the bin indices for plotting consecutive scans
         """
 
+        # check type
+        freq = np.asarray(freq)
+        scan = np.asarray(scan)
+
         # make bins 
         bins = np.arange(len(freq))
 
@@ -1436,7 +1600,7 @@ class bdata(mdata):
     
     # ======================================================================= #
     def asym(self, option="", omit="", rebin=1, hist_select='', nbm=False, 
-             deadtime=0, baseline_bins=0, omit_incomplete_scan=False):
+             deadtime=0, scan_repair_options=''):
         """Calculate and return the asymmetry for various run types. 
            
         usage: asym(option="", omit="", rebin=1, hist_select='', nbm=False, 
@@ -1457,9 +1621,27 @@ class bdata(mdata):
             nbm:                if True, use neutral beams in calculations
             deadtime:           detector deadtime used to correct counter values 
                                 (s)
-            baseline_bins:      use this many bins on either end of each scan to
-                                estimate the baseline slope on a scan-by-scan 
-                                basis. Set to zero to disable. 
+            scan_repair_options:string with format %d:%s:%s'
+            
+                                possible values: 
+                                    
+                                    int:    use this many bins on either end of 
+                                            each scan to estimate the baseline 
+                                            slope on a scan-by-scan basis. Set 
+                                            to zero to disable. 
+                                    
+                                    'omit': add this optional keyword to exclude 
+                                            the last scan in the series, if 
+                                            incomplete
+                                            default: include all scans
+                                            
+                                    'overcorrect':add this optional keyword to 
+                                            include an overcorrection to the 
+                                            baseline slopes in order to ensure 
+                                            that the final scan-combined 
+                                            asymmetry has a flat baseline
+                                
+            baseline_bins:      
             
         Asymmetry calculation outline (with default detectors) ---------------
         
@@ -1788,6 +1970,7 @@ class bdata(mdata):
             freq = self._get_xhist()
             
             # get raw scans
+            # TODO: RAW SCAN CORRECTED BASELINE
             if option =='raw':
                 a = self._get_asym_hel(d)
                 out = mdict()
@@ -1814,84 +1997,62 @@ class bdata(mdata):
                 out[xlab + '_p'] = np.array(freq_p, dtype=object)
                 out[xlab + '_n'] = np.array(freq_n, dtype=object)
                 return out 
-                
-            elif option in ('counter', 'forward_counter', 'backward_counter'):
-                freq, d_cntr = self._get_1f_mean_scans(d, freq)
-            elif option == '':
-                _, d_cntr = self._get_1f_mean_scans(d, freq)
-                freq, d = self._get_1f_sum_scans(d, freq)
-            else:
-                freq, d = self._get_1f_sum_scans(d, freq)
-                                       
-            # rebin frequency
-            if rebin>1:
-                len_f = len(freq)
-                newf = (np.average(freq[i:i+rebin-1]) for i in np.arange(0, len_f, rebin))
-                freq = np.fromiter(newf, dtype=float, count=int(np.ceil(len_f/rebin)))
-                                       
-            # swtich between remaining modes
-            if option == 'helicity':
-                a = self._get_asym_hel(d)
-                out = mdict()
-                out['p'] = self._rebin(a[0], rebin)
-                out['n'] = self._rebin(a[1], rebin)
-                out[xlab] = np.array(freq)
-                return out
+                              
+            # calculate asymmetry
+            # TODO: COMBINED ASYM CORRECTED BASELINE
+            # TODO: FIX BASELINE CORRECTION FOR SIMPLE HEL - SHIFTS PEAK?? 
+            asym = mdict()
+            if option in ('helicity', 'positive', ''):
+                asym[xlab], asym['p'] = self._get_asym_pos(d, 
+                                               options=scan_repair_options, 
+                                               freq=freq)
+            if option in ('helicity', 'negative', ''):
+                asym['n'] = self._get_asym_neg(d_simple, 
+                                               options=scan_repair_options, 
+                                               freq=freq)
+            if option in ('counter', 'backward_counter', ''): 
+                asym['b'] = self._get_asym_bck(d_cntr, 
+                                               options=scan_repair_options, 
+                                               freq=freq)
+            if option in ('counter', 'forward_counter', ''): 
+                asym['f'] = self._get_asym_fwd(d_cntr, 
+                                               options=scan_repair_options, 
+                                               freq=freq)
+            if option in ('combined', ''): 
+                asym['c'] = self._get_asym_comb(d_comb, 
+                                               options=scan_repair_options, 
+                                               freq=freq)
             
-            elif option == 'positive':
-                a = self._get_asym_pos(d)
-                return np.vstack([freq, self._rebin(a, rebin)])
-            
-            elif option == 'negative':
-                a = self._get_asym_neg(d)
-                return np.vstack([freq, self._rebin(a, rebin)])
-            
-            elif option == 'counter':
-                a = self._get_asym_counter(d_cntr)
-                out = mdict()
-                
-                if self.area.upper() == 'BNMR':
-                    out['f'] = self._rebin(a[0], rebin)
-                    out['b'] = self._rebin(a[1], rebin)
-                elif self.area.upper() == 'BNQR':
-                    out['r'] = self._rebin(a[0], rebin)
-                    out['l'] = self._rebin(a[1], rebin)
+            # rebin 
+            if rebin > 1:
+                for key in asym.keys():
                     
-                out[xlab] = np.array(freq)
-                return out
+                    # rebin frequencies
+                    if key == xlab: 
+                        len_f = len(asym[key])
+                        newf = (np.average(asym[key][i:i+rebin-1]) for i in range(0, len_f, rebin))
+                        asym[key] = np.fromiter(newf, dtype=float, count=int(np.ceil(len_f/rebin)))
+                    
+                    # rebin asymmetries
+                    else:
+                        asym[key] = self._rebin(asym[key], rebin)
+                                   
+            # format output: NQR counters
+            if self.area.upper() == 'BNQR' and 'f' in asym.keys():
+                asym['r'] = asym['f']
+                del asym['f']
+        
+            if self.area.upper() == 'BNQR' and 'b' in asym.keys():
+                asym['l'] = asym['b']
+                del asym['b']
             
-            elif option == 'forward_counter':
-                a = self._get_asym_fwd(d_cntr)
-                return np.vstack([freq, self._rebin(a, rebin)])
-            
-            elif option == 'backward_counter':
-                a = self._get_asym_bck(d_cntr)
-                return np.vstack([freq, self._rebin(a, rebin)])
-            
-            elif option in ['combined']:
-                a = self._get_asym_comb(d)
-                return np.vstack([freq, self._rebin(a, rebin)])
+            # format output: no dict needed if not enough keys
+            if len(asym.keys()) == 2:
+                keys = list(asym.keys())
+                del keys[keys.index(xlab)]
+                asym = np.vstack([asym[xlab], asym[keys[0]]])
                 
-            else:
-                ah = self._get_asym_hel(d)
-                ac = self._get_asym_comb(d)
-                ctr = self._get_asym_counter(d_cntr)
-                
-                out = mdict()
-                out['p'] = self._rebin(ah[0], rebin)
-                out['n'] = self._rebin(ah[1], rebin)
-                
-                if self.area.upper() == 'BNMR':
-                    out['f'] = self._rebin(ctr[0], rebin)
-                    out['b'] = self._rebin(ctr[1], rebin)
-                elif self.area.upper() == 'BNQR':
-                    out['r'] = self._rebin(ctr[0], rebin)
-                    out['l'] = self._rebin(ctr[1], rebin)
-                
-                out['c'] = self._rebin(ac, rebin)  
-                out[xlab] = np.array(freq)
-                
-                return out
+            return asym
             
         # 2E ------------------------------------------------------------------
         elif self.mode in ('2e', ):
