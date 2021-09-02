@@ -784,106 +784,90 @@ class bdata(mdata):
             return beam-bias15-platform # keV
     
     # ======================================================================= #
-    def _correct_baseline_combined(self, freq, F, B, options):
+    def _correct_baseline_combined(self, freq, F1, F2, B1, B2, options):
         """
             Correct sloped scan baseline in the case of combined asym calculation 
-            d = list: [1+ 1- 2+ 2-], where 1 = F/R and 2 = B/L
+            1 = pos helicity
+            2 = neg helicity
         """
-        # TODO : DO THIS (COPIED FROM SIMPLE VERSION)
-        raise RuntimeError("NOT IMPLEMENTED")
         
-        # defaults
-        scan_comb_fn = self._get_1f_sum_scans
-        baseline_bins = 0
-        omit_incomplete_scan = False
-        flatten_final_asym = False
-        
-        # parse input options
-        if options:
-            
-            # split and strip         
-            options = options.split(':')
-            options = list(map(str.strip, options))
-            
-            # check baseline correction bins
-            for opt in options:
-                try:
-                    baseline_bins = int(opt)
-                except ValueError:
-                    pass
-                else:
-                    del options[options.index(opt)]
-                    break
-                
-            # check flags
-            omit_incomplete_scan = 'omit' in options
-            flatten_final_asym = 'overcorrect' in options
-            
-            # get scan combination function
-            if 'scan_mean' in options:
-                scan_comb_fn = self._get_1f_mean_scans 
-            elif 'scan_sum' in options: 
-                scan_comb_fn = self._get_1f_sum_scans 
-            elif 'scan_raw' in options:
-                scan_comb_fn = lambda d, freq : (freq, d) 
-                
-            # check input
-            if flatten_final_asym and not baseline_bins:
-                raise RuntimeError("If overcorrection specified, must "+\
-                                   "include number of bins to estimate "+\
-                                   "baseline corrction")
-            
-            # check for unused options
-            for opt in ('omit', 'overcorrect', 'scan_mean', 'scan_sum', 'scan_raw'):
-                if opt in options:
-                    del options[options.index(opt)]
-            if options:
-                print('%d.%d: Bad scan_repair_options: %s' % \
-                        (self.year, self.run, ', '.join(options)))
-            
+        # parse input
+        scan_comb_fn, \
+        baseline_bins, \
+        omit_incomplete_scan, \
+        flatten_final_asym = self._parse_1f_baseline_options(options)
+                        
         # split into scans
         if baseline_bins or omit_incomplete_scan:
-            
+                        
             # split into scans
-            _, freq_spl, F_spl = self._split_scan(freq, F, omit_incomplete_scan)
-            _, freq_spl, B_spl = self._split_scan(freq, B, omit_incomplete_scan)
+            _, freq1_spl, F1_spl = self._split_scan(freq, F1, omit_incomplete_scan)
+            _, freq2_spl, F2_spl = self._split_scan(freq, F2, omit_incomplete_scan)
+            _, freq1_spl, B1_spl = self._split_scan(freq, B1, omit_incomplete_scan)
+            _, freq2_spl, B2_spl = self._split_scan(freq, B2, omit_incomplete_scan)
             
             # correct baseline 
             if baseline_bins: 
-                slopes = []
-                asym = []
                 
-                # iterate on scans, fix each in turn
-                for f, b, fq in zip(F_spl, B_spl, freq_spl):
-                
-                    # get pre-modified asym
-                    a, da = self._get_asym_simple(f, b)    
+                # get slopes of each helicity ratio
+                def get_slopes(num, den, fre):
+                    """
+                        numerator, denominator, frequency
+                    """
+                    slopes = []
+                    ratio = []
                     
-                    # get slopes
-                    sl = self._get_baseline_slope(fq, a, da, baseline_bins)
-                    slopes.append(sl)
-                    asym.append(a)
+                    for top, bot, fq in zip(num, den, fre):
+                        
+                        # get ratio
+                        bot[bot==0] = np.nan
+                        r = top/bot
+                        dr = r * np.sqrt(1/top, 1/bot)
+                        
+                        # get slope
+                        sl = self._get_baseline_slope(fq, r, dr, baseline_bins)
+                        slopes.append(sl)
+                        ratio.append(r)
+                        
+                    return (slopes, ratio)
+                    
+                slope1, ratio1 = get_slopes(B1_spl, F1_spl, freq1_spl)
+                slope2, ratio2 = get_slopes(F2_spl, B2_spl, freq2_spl)
                     
                 # do correction
                 def do_correction(factor=1):
-                    # fix the forward counter to get the correct resulting ratio
-                    F_spl = []
-                    for a, sl, b, fq in zip(asym, slopes, B_spl, freq_spl):                    
-                        g = a + factor*sl*(np.mean(fq) - fq)
-                        F_spl.append((1+g)/(1-g) * b)
                     
+                    # fix the numerator counter to get the correct resulting ratio
+                    B1_fix = []
+                    for r, sl, f, fq in zip(ratio1, slope1, F1_spl, freq1_spl):
+                        g = r + factor*sl*(np.mean(fq) - fq)
+                        B1_fix.append(g * f)
+                    
+                    F2_fix = []
+                    for r, sl, b, fq in zip(ratio2, slope2, B2_spl, freq2_spl):
+                        g = r + factor*sl*(np.mean(fq) - fq)
+                        F2_fix.append(g * b)
+                                        
                     # concat
-                    F = np.concatenate(F_spl)
-                    B = np.concatenate(B_spl)
-                    freq = np.concatenate(freq_spl)
+                    F1 = np.concatenate(F1_spl)
+                    B1 = np.concatenate(B1_fix)
+                    freq1 = np.concatenate(freq1_spl)
+                    
+                    F2 = np.concatenate(F2_fix)
+                    B2 = np.concatenate(B2_spl)
+                    freq2 = np.concatenate(freq2_spl)
                     
                     # combine
-                    freq, (F, B) = scan_comb_fn([F, B], freq)
+                    freq1, (F1, B1) = scan_comb_fn([F1, B1], freq1)
+                    freq2, (F2, B2) = scan_comb_fn([F2, B2], freq2)
+                    
+                    # check freq
+                    assert all(freq1 == freq2), 'Frequency arrays not equal'
                     
                     # get asym
-                    a, da = self._get_asym_simple(F, B)
+                    a, da = self._get_asym_4counter(F1, F2, B1, B2)
                     
-                    return (freq, a ,da)
+                    return (freq1, a ,da)
                 
                 # get the overcorrection factor to flatten the final asym
                 def get_factor(factor=1):
@@ -916,15 +900,30 @@ class bdata(mdata):
                 return (freq, (a, da))
 
             # concat scans
-            F = np.concatenate(F_spl)
-            B = np.concatenate(B_spl)
-            freq = np.concatenate(freq_spl)
+            F1 = np.concatenate(F1_spl)
+            B1 = np.concatenate(B1_spl)
+            freq1 = np.concatenate(freq1_spl)
+            
+            F2 = np.concatenate(F2_spl)
+            B2 = np.concatenate(B2_spl)
+            freq2 = np.concatenate(freq2_spl)
+            
+            # sort scans
+            idx = np.argsort(freq1)
+            F1, B1, freq1 = F1[idx], B1[idx], freq1[idx]
+            
+            idx = np.argsort(freq2)
+            F2, B2, freq2 = F2[idx], B2[idx], freq2[idx]
+            
+            # check freq
+            assert all(freq1 == freq2), 'Frequency arrays not equal'
+            freq = freq1
+            
+        # combine
+        freq, (F1, F2, B1, B2) = scan_comb_fn([F1, F2, B1, B2], freq)
                 
-        # combine scans
-        freq, (F, B) = scan_comb_fn([F, B], freq)
-        
         # get asym
-        a, da = self._get_asym_simple(F, B)
+        a, da = self._get_asym_4counter(F1, F2, B1, B2)
         
         return (freq, (a, da))
     
@@ -935,55 +934,12 @@ class bdata(mdata):
             d = list: [1+ 1- 2+ 2-], where 1 = F/R and 2 = B/L
         """
         
-        # defaults
-        scan_comb_fn = self._get_1f_sum_scans
-        baseline_bins = 0
-        omit_incomplete_scan = False
-        flatten_final_asym = False
+        # parse input
+        scan_comb_fn, \
+        baseline_bins, \
+        omit_incomplete_scan, \
+        flatten_final_asym = self._parse_1f_baseline_options(options)
         
-        # parse input options
-        if options:
-            
-            # split and strip         
-            options = options.split(':')
-            options = list(map(str.strip, options))
-            
-            # check baseline correction bins
-            for opt in options:
-                try:
-                    baseline_bins = int(opt)
-                except ValueError:
-                    pass
-                else:
-                    del options[options.index(opt)]
-                    break
-                
-            # check flags
-            omit_incomplete_scan = 'omit' in options
-            flatten_final_asym = 'overcorrect' in options
-            
-            # get scan combination function
-            if 'scan_mean' in options:
-                scan_comb_fn = self._get_1f_mean_scans 
-            elif 'scan_sum' in options: 
-                scan_comb_fn = self._get_1f_sum_scans 
-            elif 'scan_raw' in options:
-                scan_comb_fn = lambda d, freq : (freq, d) 
-                
-            # check input
-            if flatten_final_asym and not baseline_bins:
-                raise RuntimeError("If overcorrection specified, must "+\
-                                   "include number of bins to estimate "+\
-                                   "baseline corrction")
-            
-            # check for unused options
-            for opt in ('omit', 'overcorrect', 'scan_mean', 'scan_sum', 'scan_raw'):
-                if opt in options:
-                    del options[options.index(opt)]
-            if options:
-                print('%d.%d: Bad scan_repair_options: %s' % \
-                        (self.year, self.run, ', '.join(options)))
-            
         # split into scans
         if baseline_bins or omit_incomplete_scan:
             
@@ -1378,27 +1334,39 @@ class bdata(mdata):
         Find the combined asymmetry for slr runs. Elegant 4-counter method.
         d = list: [1+ 1- 2+ 2-], where 1 = F/R and 2 = B/L
         """
+
+        # get counter identifies
+        Fp, Fn, Bp, Bn = d
         
-        # get data [1+ 1- 2+ 2-] ---> [1+ 2+ 1- 2-]
-        d0 = d[0]; d1 = d[2]; d2 = d[1]; d3 = d[3]
+        # choose calculation method
+        if '1' in self.mode: 
+            return self._correct_baseline_combined(freq, Fp, Fn, Bp, Bn, options)
+        elif '2' in self.mode:
+            return self._get_asym_4counter(Fp, Fn, Bp, Bn)
         
+    # ======================================================================= #
+    def _get_asym_4counter(self, Fp, Fn, Bp, Bn):
+        """
+        Find the combined asymmetry for slr runs. Elegant 4-counter method.
+        """
+
         # pre-calcs
-        r_denom = d0*d3
+        r_denom = Fp*Bn
         r_denom[r_denom==0] = np.nan
-        r = np.sqrt((d1*d2/r_denom))
+        r = np.sqrt((Bp*Fn/r_denom))
         r[r==-1] = np.nan
     
         # combined asymmetry
         asym_comb = (r-1)/(r+1)
         
         # check for div by zero
-        d0[d0==0] = np.nan                  
-        d1[d1==0] = np.nan
-        d2[d2==0] = np.nan
-        d3[d3==0] = np.nan
+        Fp[Fp==0] = np.nan                  
+        Bp[Bp==0] = np.nan
+        Fn[Fn==0] = np.nan
+        Bn[Bn==0] = np.nan
         
         # error in combined asymmetry
-        asym_comb_err = r*np.sqrt(1/d1 + 1/d0 + 1/d3 + 1/d2)/np.square(r+1)
+        asym_comb_err = r*np.sqrt(1/Bp + 1/Fp + 1/Bn + 1/Fn)/np.square(r+1)
         
         # replace nan with zero 
         asym_comb[np.isnan(asym_comb)] = 0.
@@ -1705,6 +1673,63 @@ class bdata(mdata):
         return d
         
     # ======================================================================= #
+    def _parse_1f_baseline_options(self, options):
+        """
+            Parse the options to get the proper flags and functions
+        """
+        
+        # defaults
+        scan_comb_fn = self._get_1f_sum_scans
+        baseline_bins = 0
+        omit_incomplete_scan = False
+        flatten_final_asym = False
+        
+        # parse input options
+        if options:
+            
+            # split and strip         
+            options = options.split(':')
+            options = list(map(str.strip, options))
+            
+            # check baseline correction bins
+            for opt in options:
+                try:
+                    baseline_bins = int(opt)
+                except ValueError:
+                    pass
+                else:
+                    del options[options.index(opt)]
+                    break
+                
+            # check flags
+            omit_incomplete_scan = 'omit' in options
+            flatten_final_asym = 'overcorrect' in options
+            
+            # get scan combination function
+            if 'scan_mean' in options:
+                scan_comb_fn = self._get_1f_mean_scans 
+            elif 'scan_sum' in options: 
+                scan_comb_fn = self._get_1f_sum_scans 
+            elif 'scan_raw' in options:
+                scan_comb_fn = lambda d, freq : (freq, d) 
+                
+            # check input
+            if flatten_final_asym and not baseline_bins:
+                raise RuntimeError("If overcorrection specified, must "+\
+                                   "include number of bins to estimate "+\
+                                   "baseline corrction")
+            
+            # check for unused options
+            for opt in ('omit', 'overcorrect', 'scan_mean', 'scan_sum', 'scan_raw'):
+                if opt in options:
+                    del options[options.index(opt)]
+            if options:
+                print('%d.%d: Bad scan_repair_options: %s' % \
+                        (self.year, self.run, ', '.join(options)))
+        
+        return (scan_comb_fn, baseline_bins, omit_incomplete_scan, flatten_final_asym)
+    
+    # ======================================================================= #
     def _rebin(self, xdx, rebin):
         """
             Rebin array x with weights 1/dx**2 by factor rebin.
@@ -1815,7 +1840,7 @@ class bdata(mdata):
         """Calculate and return the asymmetry for various run types. 
            
         usage: asym(option="", omit="", rebin=1, hist_select='', nbm=False, 
-                    deadtime=0, baseline_bins=0)
+                    deadtime=0, scan_repair_options='')
             
         Inputs:
             option:             see below for details
