@@ -489,6 +489,7 @@ class bdata(mdata):
                 'r'                     :'raw',
                 
                 'rs'                    :'raw_split_scan',
+                'raw_split'             :'raw_split_scan',
                 
                 'raw_c'                 :'raw_combined',
                 'rc'                    :'raw_combined',
