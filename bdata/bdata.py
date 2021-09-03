@@ -1894,14 +1894,18 @@ class bdata(mdata):
             nbm:                if True, use neutral beams in calculations
             deadtime:           detector deadtime used to correct counter values 
                                 (s)
-            scan_repair_options:string with format %d:%s:%s ... etc'
+            scan_repair_options:string with format "%d:%s:%s"
             
-                                possible values: 
+                                dictates treatment options for scans. All values
+                                are optional and the order is irrelevant. 
+            
+                                possible ":"-deliminated values: 
                                     
                                     int:    use this many bins on either end of 
                                             each scan to estimate the baseline 
-                                            slope on a scan-by-scan basis. Set 
-                                            to zero to disable. 
+                                            slope on a scan-by-scan basis. Apply
+                                            baseline slope correction. 
+                                            default: don't correct the baseline
                                     
                                     'omit': add this optional keyword to exclude 
                                             the last scan in the series, if 
@@ -1913,15 +1917,14 @@ class bdata(mdata):
                                             baseline slopes in order to ensure 
                                             that the final scan-combined 
                                             asymmetry has a flat baseline
+                                            default: flatten on a scan-by-scan 
+                                                     basis
                                             
-                                    scan comb: either 'scan_sum' or 'scan_mean'
-                                            to dictate how scans are combined. 
-                                            Functions are applied to raw 
-                                            counts, not asym. 
+                                    'scan_sum' or 'scan_mean': dictate how 
+                                            scans are combined. Functions are 
+                                            applied to raw counts, not asym. 
                                             Default: scan_sum
-                                
-            baseline_bins:      
-            
+                                            
         Asymmetry calculation outline (with default detectors) ---------------
         
             Split helicity      (NMR): (F-B)/(F+B) for each
