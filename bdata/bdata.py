@@ -795,10 +795,11 @@ class bdata(mdata):
         scan_comb_fn, \
         baseline_bins, \
         omit_incomplete_scan, \
+        split_scan, \
         flatten_final_asym = self._parse_1f_baseline_options(options)
-                        
+        
         # split into scans
-        if baseline_bins or omit_incomplete_scan:
+        if baseline_bins or omit_incomplete_scan or split_scan:
                         
             # split into scans
             _, freq1_spl, F1_spl = self._split_scan(freq, F1, omit_incomplete_scan)
@@ -938,10 +939,11 @@ class bdata(mdata):
         scan_comb_fn, \
         baseline_bins, \
         omit_incomplete_scan, \
+        split_scan, \
         flatten_final_asym = self._parse_1f_baseline_options(options)
         
         # split into scans
-        if baseline_bins or omit_incomplete_scan:
+        if baseline_bins or omit_incomplete_scan or split_scan:
             
             # split into scans
             _, freq_spl, F_spl = self._split_scan(freq, F, omit_incomplete_scan)
@@ -971,18 +973,21 @@ class bdata(mdata):
                         g = a + factor*sl*(np.mean(fq) - fq)
                         F_spl.append((1+g)/(1-g) * b)
                     
-                    # concat
-                    F = np.concatenate(F_spl)
-                    B = np.concatenate(B_spl)
-                    freq = np.concatenate(freq_spl)
-                    
                     # combine
-                    freq, (F, B) = scan_comb_fn([F, B], freq)
+                    freq, (F, B) = scan_comb_fn([F_spl, B_spl], freq_spl)
                     
                     # get asym
-                    a, da = self._get_asym_simple(F, B)
+                    if type(F) is list: 
+                        a = []
+                        da = []
+                        for f, b in zip(F, B):
+                            a2 = self._get_asym_simple(f, b)
+                            a.append(a2[0]) 
+                            da.append(a2[1]) 
+                    else:
+                        a, da = self._get_asym_simple(F, B) 
                     
-                    return (freq, a ,da)
+                    return (freq, a, da)
                 
                 # get the overcorrection factor to flatten the final asym
                 def get_factor(factor=1):
@@ -1003,10 +1008,10 @@ class bdata(mdata):
                     
                     if m.valid:
                         factor = m.values[0]
-                        print('%d.%d: found overcorrection factor of %f' % \
+                        print('%d.%d: found baseline over-correction factor of %f' % \
                                 (self.year, self.run, factor))
                     else:
-                        print('%d.%d: overcorrection estimation failed' % \
+                        print('%d.%d: baseline over-correction estimation failed' % \
                                 (self.year, self.run))
                                 
                 # do correction again with factor
@@ -1014,16 +1019,25 @@ class bdata(mdata):
                 
                 return (freq, (a, da))
 
-            # concat scans
-            F = np.concatenate(F_spl)
-            B = np.concatenate(B_spl)
-            freq = np.concatenate(freq_spl)
+            F = F_spl
+            B = B_spl
+            freq = freq_spl
                 
         # combine scans
         freq, (F, B) = scan_comb_fn([F, B], freq)
         
-        # get asym
-        a, da = self._get_asym_simple(F, B)
+        # get asym: raw scans
+        if type(F) is list:
+            a = [] 
+            da = []
+            for f, b in zip(F, B):
+                asym = self._get_asym_simple(f, b)
+                a.append(asym[0])
+                da.append(asym[1])
+        
+        # get asym: combined scans
+        else:
+            a, da = self._get_asym_simple(F, B)
         
         return (freq, (a, da))
         
@@ -1437,6 +1451,14 @@ class bdata(mdata):
             Average counts in each frequency bin over 1f scans. 
         """
         
+        # concat scans
+        try:
+            for i in range(len(d)):
+                d[i] = np.concatenate(d[i])
+            freq = np.concatenate(freq)
+        except ValueError:
+            pass        
+        
         # make data frame
         df = pd.DataFrame({i:d[i] for i in range(len(d))})
         df['x'] = freq
@@ -1454,6 +1476,14 @@ class bdata(mdata):
         """
             Sum counts in each frequency bin over 1f scans, excluding zero. 
         """
+        
+        # concat scans
+        try:
+            for i in range(len(d)):
+                d[i] = np.concatenate(d[i])
+            freq = np.concatenate(freq)
+        except ValueError:
+            pass
         
         # make data frame
         df = pd.DataFrame({i:d[i] for i in range(len(d))})
@@ -1683,6 +1713,7 @@ class bdata(mdata):
         baseline_bins = 0
         omit_incomplete_scan = False
         flatten_final_asym = False
+        split_scan = False
         
         # parse input options
         if options:
@@ -1690,6 +1721,7 @@ class bdata(mdata):
             # split and strip         
             options = options.split(':')
             options = list(map(str.strip, options))
+            options = [opt for opt in options if opt]
             
             # check baseline correction bins
             for opt in options:
@@ -1706,12 +1738,13 @@ class bdata(mdata):
             flatten_final_asym = 'overcorrect' in options
             
             # get scan combination function
-            if 'scan_mean' in options:
+            if 'scan_raw' in options:
+                scan_comb_fn = lambda d, freq : (freq, d)
+                split_scan = True 
+            elif 'scan_mean' in options:
                 scan_comb_fn = self._get_1f_mean_scans 
             elif 'scan_sum' in options: 
                 scan_comb_fn = self._get_1f_sum_scans 
-            elif 'scan_raw' in options:
-                scan_comb_fn = lambda d, freq : (freq, d) 
                 
             # check input
             if flatten_final_asym and not baseline_bins:
@@ -1727,7 +1760,11 @@ class bdata(mdata):
                 print('%d.%d: Bad scan_repair_options: %s' % \
                         (self.year, self.run, ', '.join(options)))
         
-        return (scan_comb_fn, baseline_bins, omit_incomplete_scan, flatten_final_asym)
+        return (scan_comb_fn, 
+                baseline_bins, 
+                omit_incomplete_scan, 
+                split_scan,
+                flatten_final_asym)
     
     # ======================================================================= #
     def _rebin(self, xdx, rebin):
@@ -1877,10 +1914,10 @@ class bdata(mdata):
                                             that the final scan-combined 
                                             asymmetry has a flat baseline
                                             
-                                    scan comb: one of 'scan_sum', 'scan_mean', 
-                                            'scan_raw', to dictate how scans are 
-                                            combined. Functions are applied to 
-                                            raw counts, not asym. 
+                                    scan comb: either 'scan_sum' or 'scan_mean'
+                                            to dictate how scans are combined. 
+                                            Functions are applied to raw 
+                                            counts, not asym. 
                                             Default: scan_sum
                                 
             baseline_bins:      
@@ -2013,7 +2050,7 @@ class bdata(mdata):
                         frequency. 
             "rs":   Dictionary of 2D numpy arrays keyed by {p, n} for each 
                         helicity (val, err), but listed by bin, not combined by 
-                        frequency. Split by scan number.
+                        frequency. Split into scans.
             "h":    get unshifted +/- helicity scan-combined asymmetries as a 
                         dictionary {'p':(val, err), 'n':(val, err), 'freq'}
             "p":    get pos helicity states as tuple, combined by frequency 
@@ -2212,36 +2249,105 @@ class bdata(mdata):
             freq = self._get_xhist()
             
             # get raw scans
-            # TODO: RAW SCAN CORRECTED BASELINE
-            if option =='raw':
-                a = self._get_asym_hel(d)
+            if 'raw' in option:
+                
                 out = mdict()
-                out['p'] = np.array(a[0])
-                out['n'] = np.array(a[1])
-                out[xlab] = np.array(freq)
+                scan_repair_options += ':scan_raw' # force no scan combination
+                freq_p, p = self._get_asym_pos(d, freq=freq, options=scan_repair_options)
+                freq_n, n = self._get_asym_neg(d, freq=freq, options=scan_repair_options)
+                
+                # feather the output to insert zeros in the place of opposite hel scans
+                if option == 'raw':
+                    
+                    # get starting helicity 
+                    start_hel = 'p' if d[0][0] > 0 else 'n'
+                    
+                    # get asymmetries in proper order
+                    if start_hel == 'p':
+                        f1, a1, da1, f2, a2, da2 = freq_p, *p, freq_n, *n
+                    else:
+                        f1, a1, da1, f2, a2, da2 = freq_n, *n, freq_p, *p
+                    
+                    # inverse sorting order
+                    f1 = f1[::-1]
+                    f2 = f2[::-1]
+                    a1 = a1[::-1]
+                    a2 = a2[::-1]
+                    da1 = da1[::-1]
+                    da2 = da2[::-1]
+                    
+                    # initialize
+                    f_out = [f1.pop()]
+                    a1_i = a1.pop()
+                    zeros = np.zeros(len(a1_i))
+                    a1_out = [a1_i]
+                    a2_out = [zeros]
+                    da1_out = [da1.pop()]
+                    da2_out = [zeros]
+                    
+                    # feather in pairs
+                    continue_loop = True
+                    while continue_loop:
+                        
+                        try:
+                            for i in range(2):
+                                f_out.append(f2.pop())
+                                a2_i = a2.pop()
+                                zeros = np.zeros(len(a2_i))
+                                a2_out.append(a2_i)
+                                a1_out.append(zeros)
+                                
+                                da2_out.append(da2.pop())
+                                da1_out.append(zeros)
+                        except:
+                            continue_loop = False
+                        
+                        try:
+                            for i in range(2):
+                                f_out.append(f1.pop())
+                                a1_i = a1.pop()
+                                zeros = np.zeros(len(a1_i))
+                                a1_out.append(a1_i)
+                                a2_out.append(zeros)
+                                
+                                da1_out.append(da1.pop())
+                                da2_out.append(zeros)
+                        except:
+                            continue_loop = False
+                            
+                    # concat
+                    freq = np.concatenate(f_out)
+                    p = np.concatenate(a1_out)
+                    dp = np.concatenate(da1_out)
+                    n = np.concatenate(a2_out)
+                    dn = np.concatenate(da2_out)
+                    
+                    # invert order if needed
+                    if start_hel == 'n':
+                        p, n = n, p
+                        dp, dn = dn, dp
+                    
+                    out['p'] = np.array([p, dp])
+                    out['n'] = np.array([n, dn])
+                    out[xlab] = np.array(freq)
+                
+                # simply report the scans
+                elif option == 'raw_split_scan':
+                    
+                    out['p'] = np.array(p, dtype=object)
+                    out['n'] = np.array(n, dtype=object)
+                    out[xlab + '_p'] = np.array(freq_p, dtype=object)
+                    out[xlab + '_n'] = np.array(freq_n, dtype=object)
+                
+                # bad input
+                else:
+                    raise InputError('%d.%d: bad input for asym calculation (%s)' % \
+                                    (self.year, self.run, option))
+            
                 return out 
                 
-            elif option == 'raw_split_scan':
-                a = self._get_asym_hel(d)
-                
-                # split scans
-                _, _, ap = self._split_scan(freq, a[0][0], omit_incomplete_scan)
-                bins_p, freq_p, dap = self._split_scan(freq, a[0][1], omit_incomplete_scan)
-                _, _, an = self._split_scan(freq, a[1][0], omit_incomplete_scan)
-                bins_n, freq_n, dan = self._split_scan(freq, a[1][1], omit_incomplete_scan)
-                
-                # output
-                out = mdict()
-                out['bin_p'] = bins_p
-                out['bin_n'] = bins_n
-                out['p'] = np.array([ap, dap], dtype=object)
-                out['n'] = np.array([an, dan], dtype=object)
-                out[xlab + '_p'] = np.array(freq_p, dtype=object)
-                out[xlab + '_n'] = np.array(freq_n, dtype=object)
-                return out 
                               
             # calculate asymmetry
-            # TODO: COMBINED ASYM CORRECTED BASELINE
             asym = mdict()
             if option in ('helicity', 'positive', ''):
                 asym[xlab], asym['p'] = self._get_asym_pos(d, 
