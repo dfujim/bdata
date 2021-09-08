@@ -791,7 +791,7 @@ class bdata(mdata):
             1 = pos helicity
             2 = neg helicity
         """
-        
+
         # parse input
         scan_comb_fn, \
         baseline_bins, \
@@ -823,8 +823,9 @@ class bdata(mdata):
                         
                         # get ratio
                         bot[bot==0] = np.nan
+                        top[top==0] = np.nan
                         r = top/bot
-                        dr = r * np.sqrt(1/top, 1/bot)
+                        dr = r * np.sqrt(1/top + 1/bot)
                         
                         # get slope
                         sl = self._get_baseline_slope(fq, r, dr, baseline_bins)
@@ -890,7 +891,7 @@ class bdata(mdata):
                     
                     if m.valid:
                         factor = m.values[0]
-                        print('%d.%d: found overcorrection factor of %f' % \
+                        print('%d.%d: found combined overcorrection factor of %f' % \
                                 (self.year, self.run, factor))
                     else:
                         print('%d.%d: overcorrection estimation failed' % \
@@ -957,10 +958,12 @@ class bdata(mdata):
                 
                 # iterate on scans, fix each in turn
                 for f, b, fq in zip(F_spl, B_spl, freq_spl):
-                
-                    # get pre-modified asym
-                    a, da = self._get_asym_simple(f, b)    
                     
+                    # get pre-modified asym
+                    # ~ f[f==0] = np.nan
+                    # ~ b[b==0] = np.nan
+                    a, da = self._get_asym_simple(f, b)    
+                                    
                     # get slopes
                     sl = self._get_baseline_slope(fq, a, da, baseline_bins)
                     slopes.append(sl)
@@ -1009,7 +1012,7 @@ class bdata(mdata):
                     
                     if m.valid:
                         factor = m.values[0]
-                        print('%d.%d: found baseline over-correction factor of %f' % \
+                        print('%d.%d: found simple baseline over correction factor of %f' % \
                                 (self.year, self.run, factor))
                     else:
                         print('%d.%d: baseline over-correction estimation failed' % \
@@ -1113,56 +1116,6 @@ class bdata(mdata):
                     d[i] = np.delete(d[i], [0])
         return d
                         
-    # ======================================================================= #
-    def _get_baseline_slope(self, freq, scan, dscan, baseline_bins):
-        """
-            Flatten the baseline of a single scan by fitting it to a linear line 
-            and subtracting the slope (then adding back the line mean). 
-            
-            freq: array of frequencies
-            scan: array of values to fix
-            dscan: array of errors
-            baseline_bins: int, number of bins on either end to use in the 
-                           baseline fitting. Should exclude any resonance peaks. 
-        """
-        
-        # simple return
-        if baseline_bins < 0:
-            return scan
-        
-        # get indices to crop 
-        bins = np.arange(len(freq))
-        
-        # sort freq and scan by freq
-        idx = np.argsort(freq)
-        freq = np.array(freq)[idx]
-        scan = np.array(scan)[idx]
-        dscan = np.array(dscan)[idx]
-        
-        # crop out center
-        low = baseline_bins
-        high = len(freq) - baseline_bins
-        
-        freq2 = np.concatenate((freq[:low], freq[high:]))
-        scan2 = np.concatenate((scan[:low], scan[high:]))
-        dscan2 = np.concatenate((dscan[:low], dscan[high:]))
-        
-        # estimate starting baseline parameters
-        s_start = np.mean(scan[:low])
-        s_end = np.mean(scan[high:])
-
-        slope = (s_end - s_start)/(freq2[-1] - freq2[0])
-        offset = s_start - slope * freq2[0]
-
-        # fit
-        fitfn = lambda x, a, b: a*x + b
-        par, cov = curve_fit(fitfn, freq2, scan2, sigma=dscan2, 
-                             absolute_sigma=True)
-        std = np.diag(cov)**0.5
-        
-        # baseline slope
-        return par[0]
-        
     # ======================================================================= #
     def _get_area_data(self, nbm=False, hist_select=''):
         """Get histogram list based on area type.
@@ -1428,7 +1381,7 @@ class bdata(mdata):
         """
         
         # pre-calcs
-        denom = F+B; 
+        denom = F+B
         
         # check for div by zero
         denom[denom==0] = np.nan          
@@ -1446,6 +1399,63 @@ class bdata(mdata):
          
         return [asym, asym_err]
     
+        """
+            Flatten the baseline of a single scan by fitting it to a linear line 
+            and subtracting the slope (then adding back the line mean). 
+            
+            freq: array of frequencies
+            scan: array of values to fix
+            dscan: array of errors
+            baseline_bins: int, number of bins on either end to use in the 
+                           baseline fitting. Should exclude any resonance peaks. 
+        """
+        
+        # simple return
+        if baseline_bins <= 0:
+            return scan
+        
+        # get indices to crop 
+        bins = np.arange(len(freq))
+        
+        # sort freq and scan by freq
+        idx = np.argsort(freq)
+        freq = np.array(freq)[idx]
+        scan = np.array(scan)[idx]
+        dscan = np.array(dscan)[idx]
+        
+        # crop out center
+        low = baseline_bins
+        high = len(freq) - baseline_bins
+        
+        freq2 = np.concatenate((freq[:low], freq[high:]))
+        scan2 = np.concatenate((scan[:low], scan[high:]))
+        dscan2 = np.concatenate((dscan[:low], dscan[high:]))
+        
+        # remove nan and 0
+        idx = (~np.isnan(scan2)) & (scan2 != 0) & (dscan2 != 0)
+        freq2 = freq2[idx]
+        scan2 = scan2[idx]
+        dscan2 = dscan2[idx]
+        
+        # estimate starting baseline parameters
+        s_start = np.mean(scan[:low])
+        s_end = np.mean(scan[high:])
+        f_start = np.mean(freq[:low])
+        f_end = np.mean(freq[high:])
+
+        slope = (s_end - s_start)/(f_end - f_start)
+        offset = s_start - slope * f_start
+
+        # fit
+        fitfn = lambda x, a, b: a*x + b
+        par, cov = curve_fit(fitfn, freq2, scan2, sigma=dscan2, 
+                             absolute_sigma=True,
+                             p0=[slope, offset])
+        std = np.diag(cov)**0.5
+        
+        # baseline slope
+        return par[0]
+        
     # ======================================================================= #
     def _get_1f_mean_scans(self, d, freq):
         """
@@ -1689,17 +1699,19 @@ class bdata(mdata):
                 two = int(b.split('-')[1])
                 bin_ranges.extend(np.arange(one, two+1))
         
+        # trivial exit
+        if len(bin_ranges) == 0:
+            return d
+        
         # kill bins
+        bin_ranges = np.array(bin_ranges)
         for i in range(len(d)):
 
-            # get good bin range
-            if len(bin_ranges) > 0:
-                bin_ranges = np.array(bin_ranges)
-                idx = (bin_ranges>=0)*(bin_ranges<len(d[i]))
-                bin_ranges = bin_ranges[idx]
+            # get good bin range                
+            idx = (bin_ranges>=0)*(bin_ranges<len(d[i]))
 
             # kill
-            d[i][bin_ranges] = 0.
+            d[i][bin_ranges[idx]] = 0.
             
         return d
         
@@ -1828,7 +1840,7 @@ class bdata(mdata):
         # check type
         freq = np.asarray(freq)
         scan = np.asarray(scan)
-
+        
         # make bins 
         bins = np.arange(len(freq))
 
@@ -1857,20 +1869,7 @@ class bdata(mdata):
             freq_split.append(freq_incomplete)
             scan_split.append(scan_incomplete)
 
-        # remove empty or nan scans
-        bins_final = []
-        freq_final = []
-        scan_final = []
-        for i in range(len(scan_split)):
-            
-            sm = np.sum(scan_split[i])
-            
-            if sm > 0 and not np.isnan(sm):
-                bins_final.append(bins_split[i])
-                freq_final.append(freq_split[i])
-                scan_final.append(scan_split[i])
-            
-        return (bins_final, freq_final, scan_final)
+        return (bins_split, freq_split, scan_split)
     
     # ======================================================================= #
     def asym(self, option="", omit="", rebin=1, hist_select='', nbm=False, 
@@ -2092,7 +2091,7 @@ class bdata(mdata):
             'sl_n':     [ve][f] negative helicity.
             'sl_c':     [ve][f] combined helicity.
         """
-        
+                                
         # check for additonal options (1F)
         if omit != '':
             further_options = list(map(str.strip, omit.split(' ')))
@@ -2262,86 +2261,34 @@ class bdata(mdata):
                 
                 # feather the output to insert zeros in the place of opposite hel scans
                 if option == 'raw':
-                    
-                    # get starting helicity 
-                    start_hel = 'p' if d[0][0] > 0 else 'n'
-                    
-                    # get asymmetries in proper order
-                    if start_hel == 'p':
-                        f1, a1, da1, f2, a2, da2 = freq_p, *p, freq_n, *n
-                    else:
-                        f1, a1, da1, f2, a2, da2 = freq_n, *n, freq_p, *p
-                    
-                    # inverse sorting order
-                    f1 = f1[::-1]
-                    f2 = f2[::-1]
-                    a1 = a1[::-1]
-                    a2 = a2[::-1]
-                    da1 = da1[::-1]
-                    da2 = da2[::-1]
-                    
-                    # initialize
-                    f_out = [f1.pop()]
-                    a1_i = a1.pop()
-                    zeros = np.zeros(len(a1_i))
-                    a1_out = [a1_i]
-                    a2_out = [zeros]
-                    da1_out = [da1.pop()]
-                    da2_out = [zeros]
-                    
-                    # feather in pairs
-                    continue_loop = True
-                    while continue_loop:
-                        
-                        try:
-                            for i in range(2):
-                                f_out.append(f2.pop())
-                                a2_i = a2.pop()
-                                zeros = np.zeros(len(a2_i))
-                                a2_out.append(a2_i)
-                                a1_out.append(zeros)
-                                
-                                da2_out.append(da2.pop())
-                                da1_out.append(zeros)
-                        except:
-                            continue_loop = False
-                        
-                        try:
-                            for i in range(2):
-                                f_out.append(f1.pop())
-                                a1_i = a1.pop()
-                                zeros = np.zeros(len(a1_i))
-                                a1_out.append(a1_i)
-                                a2_out.append(zeros)
-                                
-                                da1_out.append(da1.pop())
-                                da2_out.append(zeros)
-                        except:
-                            continue_loop = False
-                            
-                    # concat
-                    freq = np.concatenate(f_out)
-                    p = np.concatenate(a1_out)
-                    dp = np.concatenate(da1_out)
-                    n = np.concatenate(a2_out)
-                    dn = np.concatenate(da2_out)
-                    
-                    # invert order if needed
-                    if start_hel == 'n':
-                        p, n = n, p
-                        dp, dn = dn, dp
-                    
-                    out['p'] = np.array([p, dp])
-                    out['n'] = np.array([n, dn])
-                    out[xlab] = np.array(freq)
+                    assert len(freq_p) == len(freq_n)
+                    out['p'] = np.array([np.concatenate(p[0]), np.concatenate(p[1])])
+                    out['n'] = np.array([np.concatenate(n[0]), np.concatenate(n[1])])
+                    out[xlab] = np.array(np.concatenate(freq_p))
                 
                 # simply report the scans
                 elif option == 'raw_split_scan':
                     
-                    out['p'] = np.array(p, dtype=object)
-                    out['n'] = np.array(n, dtype=object)
-                    out[xlab + '_p'] = np.array(freq_p, dtype=object)
-                    out[xlab + '_n'] = np.array(freq_n, dtype=object)
+                    # remove empty scans
+                    p_out = []
+                    n_out = []
+                    fp_out = []
+                    fn_out = []
+                    
+                    for pi, fi in zip(p, freq_p):
+                        if sum(pi[0]) > 0:
+                            p_out.append(pi)
+                            fp_out.append(fi)
+                    
+                    for ni, fi in zip(n, freq_n):
+                        if sum(ni[0]) > 0:
+                            n_out.append(ni)
+                            fn_out.append(fi)
+                    
+                    out['p'] = np.array(p_out, dtype=object)
+                    out['n'] = np.array(n_out, dtype=object)
+                    out[xlab + '_p'] = np.array(fp_out, dtype=object)
+                    out[xlab + '_n'] = np.array(fn_out, dtype=object)
                 
                 # bad input
                 else:
