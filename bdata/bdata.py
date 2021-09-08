@@ -960,8 +960,6 @@ class bdata(mdata):
                 for f, b, fq in zip(F_spl, B_spl, freq_spl):
                     
                     # get pre-modified asym
-                    # ~ f[f==0] = np.nan
-                    # ~ b[b==0] = np.nan
                     a, da = self._get_asym_simple(f, b)    
                                     
                     # get slopes
@@ -972,13 +970,14 @@ class bdata(mdata):
                 # do correction
                 def do_correction(factor=1):
                     # fix the forward counter to get the correct resulting ratio
-                    F_spl = []
-                    for a, sl, b, fq in zip(asym, slopes, B_spl, freq_spl):                    
+                    F_spl2 = []
+                    for a, sl, f, b, fq in zip(asym, slopes, F_spl, B_spl, freq_spl):                    
                         g = a + factor*sl*(np.mean(fq) - fq)
-                        F_spl.append((1+g)/(1-g) * b)
+                        g[g == 1] = np.nan
+                        F_spl2.append((1+g)/(1-g) * b)
                     
                     # combine
-                    freq, (F, B) = scan_comb_fn([F_spl, B_spl], freq_spl)
+                    freq, (F, B) = scan_comb_fn([F_spl2, B_spl], freq_spl)
                     
                     # get asym
                     if type(F) is list: 
@@ -1399,6 +1398,8 @@ class bdata(mdata):
          
         return [asym, asym_err]
     
+    # ======================================================================= #
+    def _get_baseline_slope(self, freq, scan, dscan, baseline_bins):
         """
             Flatten the baseline of a single scan by fitting it to a linear line 
             and subtracting the slope (then adding back the line mean). 
@@ -1436,6 +1437,9 @@ class bdata(mdata):
         freq2 = freq2[idx]
         scan2 = scan2[idx]
         dscan2 = dscan2[idx]
+        
+        if not scan2.size:
+            return 0
         
         # estimate starting baseline parameters
         s_start = np.mean(scan[:low])
