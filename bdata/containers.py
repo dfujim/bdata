@@ -3,8 +3,13 @@ from mudpy.containers import mvar, mhist, mdict
     
 class vdict(mdict):
     def set(self, key, **kwargs):
-        self[key] = mvar(**kwargs)
-    
+        if key not in self.keys():
+            self[key] = mvar(**kwargs)
+        else:
+            for s in mvar.__slots__:
+                if s in kwargs.keys():
+                    setattr(self[key], s, kwargs[s])
+            
     # depreciate 1n volt ppg parameter
     def __getitem__(self, key): 
         
@@ -19,5 +24,10 @@ class vdict(mdict):
         
 class hdict(mdict):
     def set(self, key, **kwargs):
-        self[key] = mhist(**kwargs)
+        if key not in self.keys():
+            self[key] = mhist(**kwargs)
+        else:
+            for s in mhist.__slots__:
+                if s in kwargs.keys():
+                    setattr(self[key], s, kwargs[s])
 
