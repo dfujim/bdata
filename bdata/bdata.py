@@ -126,276 +126,281 @@ class bdata(mdata):
     """
     
     # set nice dictionary keys 
-    dkeys = {
+    
+    # PPG (just the stuff after the last "/")
+    dkeys_ppg = {
+        "e20 beam on dwelltimes"            :"beam_on", 
+        "e00 beam on dwelltimes"            :"beam_on", 
+        "e20  beam off dwelltimes"          :"beam_off", 
+        "e20 beam off dwelltimes"           :"beam_off",   
+        "e00 beam off dwelltimes"           :"beam_off",   
+        "beam off time (ms)"                :"beam_off_ms", 
+                                                    
+        "constant time between cycles"      :"const_t_btwn_cycl", 
+        "e1f const time between cycles"     :"const_t_btwn_cycl", 
         
-        # PPG (just the stuff after the last "/")
-            "e20 beam on dwelltimes"            :"beam_on", 
-            "e00 beam on dwelltimes"            :"beam_on", 
-            "e20  beam off dwelltimes"          :"beam_off", 
-            "e20 beam off dwelltimes"           :"beam_off",   
-            "e00 beam off dwelltimes"           :"beam_off",   
-            "beam off time (ms)"                :"beam_off_ms", 
-                                                        
-            "constant time between cycles"      :"const_t_btwn_cycl", 
-            "e1f const time between cycles"     :"const_t_btwn_cycl", 
-            
-            "Custom var enabled"                :"customv_enable", 
-            "Custom var read name"              :"customv_name_read",    
-            "Custom var write name"             :"customv_name_write",   
-             
-            "Start custom scan"                 :"customv_scan_start",    
-            "Stop custom scan"                  :"customv_scan_stop",    
-            "Custom Increment"                  :"customv_scan_incr", 
-            
-            "scan device"                       :"scan_device",
-            
-            "scan start"                        :"scan_start",
-            "scan stop"                         :"scan_stop",
-            "scan incr"                         :"scan_incr",
-            "scan increment"                    :"scan_incr",
-            
-            "NaVolt start (volts)"              :"scan_start", 
-            "NaVolt stop (volts)"               :"scan_stop", 
-            "NaVolt inc (volts)"                :"scan_incr", 
-            
-            "laser start (volts)"               :"scan_start", 
-            "laser stop (volts)"                :"scan_stop", 
-            "laser inc (volts)"                 :"scan_incr", 
-           
-            "field start (gauss)"               :"scan_start", 
-            "field stop (gauss)"                :"scan_stop", 
-            "field inc (gauss)"                 :"scan_incr", 
-                                                        
-            "DAQ drives sampleref"              :"smpl_ref_daq_drive", 
-            "DAQ service time (ms)"             :"service_t", 
-            "Dwell time (ms)"                   :"dwelltime", 
-            "Bin width (ms)"                    :"dwelltime", 
-                                                        
-            "Enable helicity flipping"          :"hel_enable", 
-            "Enable RF"                         :"rf_enable", 
-            "enable sampleref mode"             :"smpl_ref_enable", 
-            
-            "Field start (Gauss)"               :"field_start", 
-            "Field stop (Gauss)"                :"field_stop",    
-            "Field inc (Gauss)"                 :"field_incr", 
-            
-            "frequency increment (Hz)"          :"freq_incr", 
-            "frequency start (Hz)"              :"freq_start", 
-            "frequency stop (Hz)"               :"freq_stop", 
-            
-            "scan var histo factor"             :"scan_var_histo_factor",
-            
-            "init mode file"                    :"init_mode", 
-            "init mode"                         :"init_mode", 
-                                                        
-            "helicity flip sleep (ms)"          :"hel_sleep", 
-            "Helicity flip sleep(ms)"           :"hel_sleep", 
-                                                                                                    
-            "num bins"                          :"nbins", 
-            "num cycles per supercycle"         :"ncycles", 
-            "Number dwelltimes per freq"        :"ndwell_per_f", 
-            "number of midbnmr regions"         :"nregion", 
-            "num post RF beamOn dwelltimes"     :"ndwell_post_on", 
-                                   
-            "Param X Start"                     :'xstart', 
-            "Param X Stop"                      :'xstop', 
-            "Param X Incr"                      :'xincr', 
-            "Constant param Y"                  :'yconst', 
-            
-            "f1 frequency function"             :"freqfn_f1", 
-            "f2 frequency function"             :"freqfn_f2", 
-            "f3 frequency function"             :"freqfn_f3", 
-            "f4 frequency function"             :"freqfn_f4", 
-                                                        
-            "PPG mode"                          :"mode",     
-            "e20 prebeam dwelltimes"            :"prebeam", 
-            "e00 prebeam dwelltimes"            :"prebeam", 
-            "psm onef enabled"                  :"onef_enable", 
-            "psm onef scale factor"             :"onef_scale", 
-            "psm fREF enabled"                  :"fref_enable", 
-            "psm fREF scale factor"             :"fref_scale", 
-            "psm scale factor"                  :"psm_scale", 
-            "psm scaler factor"                 :"psm_scale", 
-                                                        
-            "randomize freq increments"         :"rand_freq_incr", 
-            "Randomize freq values"             :"rand_freq_val", 
-            "Ref tuning freq (Hz)"              :"ref_tune_freq", 
-            "Ref tuning frequency (Hz)"         :"ref_tune_freq", 
-            "e20 rf frequency (Hz)"             :"freq", 
-            "e00 rf frequency (Hz)"             :"freq", 
-            "RFon delay (dwelltimes)"           :"rf_on_delay", 
-            "num RF on delays (dwell times)"    :"rf_on_delay", 
-            "RFon duration (dwelltimes)"        :"rf_on", 
-            "RF on time (ms)"                   :"rf_on_ms", 
-            "RF enabled"                        :"rf_enable", 
-            
-            'num finer freq regions'            :'fine_freq_nregions',
-            'fine freq start  (hz)'             :'fine_freq_start',
-            'fine freq end  (hz)'               :'fine_freq_end',
-            'fine freq increment  (hz)'         :'fine_freq_increment',
-            
-            "Single tone simulated"             :"sgle_tone_sim", 
-                                                        
-            "use defaults for midbnmr"          :"defaults", 
-            
-            "probe species"                     :"probe_species",
- 
-        # CAMP
-            "/biasV/input1"                             :"rb_cell_bias_set", 
-            "/biasV/output1"                            :"rb_cell_bias_read", 
+        "Custom var enabled"                :"customv_enable", 
+        "Custom var read name"              :"customv_name_read",    
+        "Custom var write name"             :"customv_name_write",   
+         
+        "Start custom scan"                 :"customv_scan_start",    
+        "Stop custom scan"                  :"customv_scan_stop",    
+        "Custom Increment"                  :"customv_scan_incr", 
         
-            "/CryoEx_MassFlow/read_flow"                :"cryo_read", 
-            "/CryoEx_MassFlow/set_flow"                 :"cryo_set", 
-            "/Cryo_level/He_level"                      :"cryo_he", 
-            "/Cryo_level/N2_level"                      :"cryo_n2", 
-            "/cryo_lift/set_position"                   :"clift_set",  
-            "/cryo_lift/read_position"                  :"clift_read", 
-            
-            "/Cryo_oven/current_read_1"                 :"oven_current", 
-            "/Cryo_oven/output_1/D"                     :"oven_out_d", 
-            "/Cryo_oven/output_1/I"                     :"oven_out_i", 
-            "/Cryo_oven/output_1/P"                     :"oven_out_p", 
-            "/Cryo_oven/read_A"                         :"oven_readA", 
-            "/Cryo_oven/read_B"                         :"oven_readB", 
-            "/Cryo_oven/read_C"                         :"oven_readC", 
-            "/Cryo_oven/read_D"                         :"oven_readD", 
-            "/Cryo_oven/setpoint_1"                     :"oven_set1", 
-                        
-            "/Dac0/dac_set"                             :"dac_set", 
-            "/dac/dac_set"                              :"dac_set", 
-            "/Dewar/He_level"                           :"he_level", 
-             
-            "/flow_set/output"                          :"flow_set_out", 
+        "scan device"                       :"scan_device",
+        
+        "scan start"                        :"scan_start",
+        "scan stop"                         :"scan_stop",
+        "scan incr"                         :"scan_incr",
+        "scan increment"                    :"scan_incr",
+        
+        "NaVolt start (volts)"              :"scan_start", 
+        "NaVolt stop (volts)"               :"scan_stop", 
+        "NaVolt inc (volts)"                :"scan_incr", 
+        
+        "laser start (volts)"               :"scan_start", 
+        "laser stop (volts)"                :"scan_stop", 
+        "laser inc (volts)"                 :"scan_incr", 
+       
+        "field start (gauss)"               :"scan_start", 
+        "field stop (gauss)"                :"scan_stop", 
+        "field inc (gauss)"                 :"scan_incr", 
                                                     
-            "/He_flow/read_flow"                        :"he_read", 
-            "/He_flow/set_flow"                         :"he_set", 
+        "DAQ drives sampleref"              :"smpl_ref_daq_drive", 
+        "DAQ service time (ms)"             :"service_t", 
+        "Dwell time (ms)"                   :"dwelltime", 
+        "Bin width (ms)"                    :"dwelltime", 
                                                     
-            "/lock-in/R"                                :"lockin_r", 
-            "/lock-in/theta"                            :"lockin_theta", 
-            "/lock-in/X"                                :"lockin_x", 
-            "/lock-in/Y"                                :"lockin_y", 
+        "Enable helicity flipping"          :"hel_enable", 
+        "Enable RF"                         :"rf_enable", 
+        "enable sampleref mode"             :"smpl_ref_enable", 
+        
+        "Field start (Gauss)"               :"field_start", 
+        "Field stop (Gauss)"                :"field_stop",    
+        "Field inc (Gauss)"                 :"field_incr", 
+        
+        "frequency increment (Hz)"          :"freq_incr", 
+        "frequency start (Hz)"              :"freq_start", 
+        "frequency stop (Hz)"               :"freq_stop", 
+        
+        "scan var histo factor"             :"scan_var_histo_factor",
+        
+        "init mode file"                    :"init_mode", 
+        "init mode"                         :"init_mode", 
                                                     
-            "/Magnet/mag_field"                         :"b_field",     
-            "/Magnet/mag_set"                           :"b_field_setpt",     
-            "/Magnet/mag_read"                          :"mag_current", 
-            "/Magnet/controls/sys_status"               :"mag_ctrl_status", 
-            "/Magnet/ramp_status"                       :"mag_ramp_status", 
-            "/Magnet/volts"                             :"mag_voltage", 
-            "/mass_flow/read_flow"                      :"mass_read", 
-            "/mass_flow/set_flow"                       :"mass_set",   
+        "helicity flip sleep (ms)"          :"hel_sleep", 
+        "Helicity flip sleep(ms)"           :"hel_sleep", 
+                                                                                                
+        "num bins"                          :"nbins", 
+        "num cycles per supercycle"         :"ncycles", 
+        "Number dwelltimes per freq"        :"ndwell_per_f", 
+        "number of midbnmr regions"         :"nregion", 
+        "num post RF beamOn dwelltimes"     :"ndwell_post_on", 
+                               
+        "Param X Start"                     :'xstart', 
+        "Param X Stop"                      :'xstop', 
+        "Param X Incr"                      :'xincr', 
+        "Constant param Y"                  :'yconst', 
+        
+        "f1 frequency function"             :"freqfn_f1", 
+        "f2 frequency function"             :"freqfn_f2", 
+        "f3 frequency function"             :"freqfn_f3", 
+        "f4 frequency function"             :"freqfn_f4", 
                                                     
-            "/needle-valve/read_position"               :"needle_read", 
-            "/Needle/read_position"                     :"needle_pos", 
-            "/Needle/motor_position"                    :"needle_pos", 
-            "/needle-valve/set_position"                :"needle_set", 
-            "/Needle_Valve/set_position"                :"needle_set", 
-            "/Needle/set_position"                      :"needle_set", 
-            
-            "/PVac/adc_read"                            :"vac", 
+        "PPG mode"                          :"mode",     
+        "e20 prebeam dwelltimes"            :"prebeam", 
+        "e00 prebeam dwelltimes"            :"prebeam", 
+        "psm onef enabled"                  :"onef_enable", 
+        "psm onef scale factor"             :"onef_scale", 
+        "psm fREF enabled"                  :"fref_enable", 
+        "psm fREF scale factor"             :"fref_scale", 
+        "psm scale factor"                  :"psm_scale", 
+        "psm scaler factor"                 :"psm_scale", 
                                                     
-            "/rfamp/fwd_max"                            :"rfamp_fwd", 
-            "/rfamp/fwd_power"                          :"rfamp_fpwr", 
-            "/rfamp/refl_max"                           :"rfamp_rfl", 
-            "/rfamp/RF_gain"                            :"rfamp_rfgain", 
-            "/rf_level_cont/dac_set"                    :"rf_dac", 
+        "randomize freq increments"         :"rand_freq_incr", 
+        "Randomize freq values"             :"rand_freq_val", 
+        "Ref tuning freq (Hz)"              :"ref_tune_freq", 
+        "Ref tuning frequency (Hz)"         :"ref_tune_freq", 
+        "e20 rf frequency (Hz)"             :"freq", 
+        "e00 rf frequency (Hz)"             :"freq", 
+        "RFon delay (dwelltimes)"           :"rf_on_delay", 
+        "num RF on delays (dwell times)"    :"rf_on_delay", 
+        "RFon duration (dwelltimes)"        :"rf_on", 
+        "RF on time (ms)"                   :"rf_on_ms", 
+        "RF enabled"                        :"rf_enable", 
+        
+        'num finer freq regions'            :'fine_freq_nregions',
+        'fine freq start  (hz)'             :'fine_freq_start',
+        'fine freq end  (hz)'               :'fine_freq_end',
+        'fine freq increment  (hz)'         :'fine_freq_increment',
+        
+        "Single tone simulated"             :"sgle_tone_sim", 
                                                     
-            "/Sample/current_read_1"                    :"smpl_current", 
-            "/Sample/current_read"                      :"smpl_current", 
-            "/Sample1/current_read"                     :"smpl_current", 
-            "/Sample/sample_read"                       :"smpl_read_A", 
-            "/Sample/read_A"                            :"smpl_read_A", 
-            "/Sample1/read_A"                           :"smpl_read_A", 
-            "/Sample/read_B"                            :"smpl_read_B", 
-            "/Sample1/read_B"                           :"smpl_read_B", 
-            "/adc0/adc_read"                            :"smpl_read_B", 
-            "/Sample/read_C"                            :"smpl_read_C", 
-            "/Sample/read_D"                            :"smpl_read_D", 
-            "/Sample/set_current"                       :"smpl_set_current", 
-            "/Sample/setpoint"                          :"smpl_set", 
-            "/Sample1/setpoint"                         :"smpl_set", 
-            "/Sample/setpoint_1"                        :"smpl_set", 
-            "/sample2/heat_range"                       :"smpl2_heat", 
-            "/sample2/sample_read"                      :"smpl2_read", 
-            "/sample_volts/reading"                     :"smpl_volts", 
-            "/Shield/read_1"                            :"shield_read1", 
-            "/signal_gen/amplitude"                     :"sig_gen_amp", 
-            "/signal_gen/frequency"                     :"sig_gen_freq", 
-            "/signal_gen/power_level"                   :"sig_gen_pwr", 
-            "/signal_gen/rf_on"                         :"sig_gen_rfon", 
-            "/stealth/fwd_max"                          :"stealth_fwd_max", 
-            "/stealth/fwd_power"                        :"stealth_fwd_pwr", 
-            "/stealth/rev_max"                          :"stealth_rev_max", 
-            "/stealth/rev_power"                        :"stealth_rev_pwr", 
-            
-        # EPICS
-            "BNMR:HVBIAS:P"                             :"nmr_bias", 
-            "BNMR:HVBIAS:PO"                            :"nmr_bias", 
-            "BNMR:HVBIAS:POS"                           :"nmr_bias", 
-            "BNMR:HVBIAS:POS:"                          :"nmr_bias", 
-            "BNMR:HVBIAS:POS:R"                         :"nmr_bias", 
-            "BNMR:HVBIAS:POS:RDVO"                      :"nmr_bias", 
-            "BNMR:HVBIAS:POS:RDVOL"                     :"nmr_bias", 
-            "BNMR:HVBIAS:POS:RDVOL1"                    :"nmr_bias", 
-                                                  
-            "BNMR:HVBIAS:N"                             :"nmr_bias_n", 
-            "BNMR:HVBIAS:NE"                            :"nmr_bias_n", 
-            "BNMR:HVBIAS:NEG"                           :"nmr_bias_n", 
-            "BNMR:HVBIAS:NEG:"                          :"nmr_bias_n", 
-            "BNMR:HVBIAS:NEG:R"                         :"nmr_bias_n", 
-            "BNMR:HVBIAS:NEG:RDVO"                      :"nmr_bias_n", 
-            "BNMR:HVBIAS:NEG:RDVOL"                     :"nmr_bias_n", 
-            "BNMR:HVBIAS:NEG:RDVOL1"                    :"nmr_bias_n", 
-                                                  
-            "BNQR:HVBIAS:RD"                            :"nqr_bias", 
-            "BNQR:HVBIAS:RDVOL"                         :"nqr_bias", 
-                                                  
-            "ITE:BIAS:RDVO"                             :"target_bias",  
-            "ITE:BIAS:RDVOL"                            :"target_bias",  
-            "ITE:BIAS:RDVOLER"                          :"target_bias",  
-            "ITE:BIAS:RDVOLVOL"                         :"target_bias", 
-            "ITW:BIAS:R"                                :"target_bias", 
-            "ITW:BIAS:RD"                               :"target_bias", 
-            "ITW:BIAS:RDV"                              :"target_bias", 
-            "ITW:BIAS:RDVO"                             :"target_bias", 
-            "ITW:BIAS:RDVOL"                            :"target_bias", 
-            "ITW:BIAS:RDVOL1"                           :"target_bias", 
-            "ITW:BIAS:RDVOLVOL"                         :"target_bias", 
-                                                  
-            "ILE2:BIAS15:R"                             :"bias15", 
-            "ILE2:BIAS15:RD"                            :"bias15", 
-            "ILE2:BIAS15:RDV"                           :"bias15", 
-            "ILE2:BIAS15:RDVO"                          :"bias15",    
-            "ILE2:BIAS15:RDVOL"                         :"bias15", 
-                                                  
-            "ILE2:LAS:RDPO"                             :"las_pwr", 
-            "ILE2:LAS:RDPOW"                            :"las_pwr", 
-            "ILE2:LAS:RDPOWE"                           :"las_pwr", 
-            "ILE2:LAS:RDPOWER"                          :"las_pwr", 
-            "ILE2:LAS:RDPOWERL"                         :"las_pwr", 
-             
-            "ILE2:BIASTUBE:"                            :"biastube", 
-            "ILE2:BIASTUBE:V"                           :"biastube", 
-            "ILE2:BIASTUBE:VOL"                         :"biastube", 
-            "ILE2:BIASTUBE:RDVOL"                       :"biastube", 
-             
-            "ILE2:DPPLR:CH0:HW:RDVOL"                   :"dopplertube_ch0", 
-            "ILE2:DPPLR:CH1:HW:RDVOL"                   :"dopplertube_ch1", 
-            "ILE2:DPPLR:CH2:HW:RDVOL"                   :"dopplertube_ch2", 
-            
-            "BNMR:EL3:RDVOL"                            :"el3", 
-             
-            "ILE2A1:HH:CUR"                             :"hh_current", 
-            "ILE2A1:HH:RDCU"                            :"hh_current", 
-            "ILE2A1:HH:RDCUR"                           :"hh_current", 
-            "ILE2A1:HH3:RDCUR"                          :"hh_current", 
-            
-            "ILE2A1:HH6:RDCUR"                          :"hh6_current", 
-            
-            "TRILIS177:METER:LAMBDA1"                   :"las_lambda",
-            "TRILIS177:METER:WAVENUM1"                  :"las_wavenum",
-            
-            "":""
-            }
+        "use defaults for midbnmr"          :"defaults", 
+        
+        "probe species"                     :"probe_species",
+    }
+    
+    # CAMP
+    dkeys_camp = {
+        
+        "/biasV/input1"                             :"rb_cell_bias_set", 
+        "/biasV/output1"                            :"rb_cell_bias_read", 
+    
+        "/CryoEx_MassFlow/read_flow"                :"cryo_read", 
+        "/CryoEx_MassFlow/set_flow"                 :"cryo_set", 
+        "/Cryo_level/He_level"                      :"cryo_he", 
+        "/Cryo_level/N2_level"                      :"cryo_n2", 
+        "/cryo_lift/set_position"                   :"clift_set",  
+        "/cryo_lift/read_position"                  :"clift_read", 
+        
+        "/Cryo_oven/current_read_1"                 :"oven_current", 
+        "/Cryo_oven/output_1/D"                     :"oven_out_d", 
+        "/Cryo_oven/output_1/I"                     :"oven_out_i", 
+        "/Cryo_oven/output_1/P"                     :"oven_out_p", 
+        "/Cryo_oven/read_A"                         :"oven_readA", 
+        "/Cryo_oven/read_B"                         :"oven_readB", 
+        "/Cryo_oven/read_C"                         :"oven_readC", 
+        "/Cryo_oven/read_D"                         :"oven_readD", 
+        "/Cryo_oven/setpoint_1"                     :"oven_set1", 
+                    
+        "/Dac0/dac_set"                             :"dac_set", 
+        "/dac/dac_set"                              :"dac_set", 
+        "/Dewar/He_level"                           :"he_level", 
+         
+        "/flow_set/output"                          :"flow_set_out", 
+                                                
+        "/He_flow/read_flow"                        :"he_read", 
+        "/He_flow/set_flow"                         :"he_set", 
+                                                
+        "/lock-in/R"                                :"lockin_r", 
+        "/lock-in/theta"                            :"lockin_theta", 
+        "/lock-in/X"                                :"lockin_x", 
+        "/lock-in/Y"                                :"lockin_y", 
+                                                
+        "/Magnet/mag_field"                         :"b_field",     
+        "/Magnet/mag_set"                           :"b_field_setpt",     
+        "/Magnet/mag_read"                          :"mag_current", 
+        "/Magnet/controls/sys_status"               :"mag_ctrl_status", 
+        "/Magnet/ramp_status"                       :"mag_ramp_status", 
+        "/Magnet/volts"                             :"mag_voltage", 
+        "/mass_flow/read_flow"                      :"mass_read", 
+        "/mass_flow/set_flow"                       :"mass_set",   
+                                                
+        "/needle-valve/read_position"               :"needle_read", 
+        "/Needle/read_position"                     :"needle_pos", 
+        "/Needle/motor_position"                    :"needle_pos", 
+        "/needle-valve/set_position"                :"needle_set", 
+        "/Needle_Valve/set_position"                :"needle_set", 
+        "/Needle/set_position"                      :"needle_set", 
+        
+        "/PVac/adc_read"                            :"vac", 
+                                                
+        "/rfamp/fwd_max"                            :"rfamp_fwd", 
+        "/rfamp/fwd_power"                          :"rfamp_fpwr", 
+        "/rfamp/refl_max"                           :"rfamp_rfl", 
+        "/rfamp/RF_gain"                            :"rfamp_rfgain", 
+        "/rf_level_cont/dac_set"                    :"rf_dac", 
+                                                
+        "/Sample/current_read_1"                    :"smpl_current", 
+        "/Sample/current_read"                      :"smpl_current", 
+        "/Sample1/current_read"                     :"smpl_current", 
+        "/Sample/sample_read"                       :"smpl_read_A", 
+        "/Sample/read_A"                            :"smpl_read_A", 
+        "/Sample1/read_A"                           :"smpl_read_A", 
+        "/Sample/read_B"                            :"smpl_read_B", 
+        "/Sample1/read_B"                           :"smpl_read_B", 
+        "/adc0/adc_read"                            :"smpl_read_B", 
+        "/Sample/read_C"                            :"smpl_read_C", 
+        "/Sample/read_D"                            :"smpl_read_D", 
+        "/Sample/set_current"                       :"smpl_set_current", 
+        "/Sample/setpoint"                          :"smpl_set", 
+        "/Sample1/setpoint"                         :"smpl_set", 
+        "/Sample/setpoint_1"                        :"smpl_set", 
+        "/sample2/heat_range"                       :"smpl2_heat", 
+        "/sample2/sample_read"                      :"smpl2_read", 
+        "/sample_volts/reading"                     :"smpl_volts", 
+        "/Shield/read_1"                            :"shield_read1", 
+        "/signal_gen/amplitude"                     :"sig_gen_amp", 
+        "/signal_gen/frequency"                     :"sig_gen_freq", 
+        "/signal_gen/power_level"                   :"sig_gen_pwr", 
+        "/signal_gen/rf_on"                         :"sig_gen_rfon", 
+        "/stealth/fwd_max"                          :"stealth_fwd_max", 
+        "/stealth/fwd_power"                        :"stealth_fwd_pwr", 
+        "/stealth/rev_max"                          :"stealth_rev_max", 
+        "/stealth/rev_power"                        :"stealth_rev_pwr", 
+    }
+    
+    # EPICS
+    dkeys_epics = {
+        "BNMR:HVBIAS:P"                             :"nmr_bias", 
+        "BNMR:HVBIAS:PO"                            :"nmr_bias", 
+        "BNMR:HVBIAS:POS"                           :"nmr_bias", 
+        "BNMR:HVBIAS:POS:"                          :"nmr_bias", 
+        "BNMR:HVBIAS:POS:R"                         :"nmr_bias", 
+        "BNMR:HVBIAS:POS:RDVO"                      :"nmr_bias", 
+        "BNMR:HVBIAS:POS:RDVOL"                     :"nmr_bias", 
+        "BNMR:HVBIAS:POS:RDVOL1"                    :"nmr_bias", 
+                                              
+        "BNMR:HVBIAS:N"                             :"nmr_bias_n", 
+        "BNMR:HVBIAS:NE"                            :"nmr_bias_n", 
+        "BNMR:HVBIAS:NEG"                           :"nmr_bias_n", 
+        "BNMR:HVBIAS:NEG:"                          :"nmr_bias_n", 
+        "BNMR:HVBIAS:NEG:R"                         :"nmr_bias_n", 
+        "BNMR:HVBIAS:NEG:RDVO"                      :"nmr_bias_n", 
+        "BNMR:HVBIAS:NEG:RDVOL"                     :"nmr_bias_n", 
+        "BNMR:HVBIAS:NEG:RDVOL1"                    :"nmr_bias_n", 
+                                              
+        "BNQR:HVBIAS:RD"                            :"nqr_bias", 
+        "BNQR:HVBIAS:RDVOL"                         :"nqr_bias", 
+                                              
+        "ITE:BIAS:RDVO"                             :"target_bias",  
+        "ITE:BIAS:RDVOL"                            :"target_bias",  
+        "ITE:BIAS:RDVOLER"                          :"target_bias",  
+        "ITE:BIAS:RDVOLVOL"                         :"target_bias", 
+        "ITW:BIAS:R"                                :"target_bias", 
+        "ITW:BIAS:RD"                               :"target_bias", 
+        "ITW:BIAS:RDV"                              :"target_bias", 
+        "ITW:BIAS:RDVO"                             :"target_bias", 
+        "ITW:BIAS:RDVOL"                            :"target_bias", 
+        "ITW:BIAS:RDVOL1"                           :"target_bias", 
+        "ITW:BIAS:RDVOLVOL"                         :"target_bias", 
+                                              
+        "ILE2:BIAS15:R"                             :"bias15", 
+        "ILE2:BIAS15:RD"                            :"bias15", 
+        "ILE2:BIAS15:RDV"                           :"bias15", 
+        "ILE2:BIAS15:RDVO"                          :"bias15",    
+        "ILE2:BIAS15:RDVOL"                         :"bias15", 
+                                              
+        "ILE2:LAS:RDPO"                             :"las_pwr", 
+        "ILE2:LAS:RDPOW"                            :"las_pwr", 
+        "ILE2:LAS:RDPOWE"                           :"las_pwr", 
+        "ILE2:LAS:RDPOWER"                          :"las_pwr", 
+        "ILE2:LAS:RDPOWERL"                         :"las_pwr", 
+         
+        "ILE2:BIASTUBE:"                            :"biastube", 
+        "ILE2:BIASTUBE:V"                           :"biastube", 
+        "ILE2:BIASTUBE:VOL"                         :"biastube", 
+        "ILE2:BIASTUBE:RDVOL"                       :"biastube", 
+         
+        "ILE2:DPPLR:CH0:HW:RDVOL"                   :"dopplertube_ch0", 
+        "ILE2:DPPLR:CH1:HW:RDVOL"                   :"dopplertube_ch1", 
+        "ILE2:DPPLR:CH2:HW:RDVOL"                   :"dopplertube_ch2", 
+        
+        "BNMR:EL3:RDVOL"                            :"el3", 
+         
+        "ILE2A1:HH:CUR"                             :"hh_current", 
+        "ILE2A1:HH:RDCU"                            :"hh_current", 
+        "ILE2A1:HH:RDCUR"                           :"hh_current", 
+        "ILE2A1:HH3:RDCUR"                          :"hh_current", 
+        
+        "ILE2A1:HH6:RDCUR"                          :"hh6_current", 
+        
+        "TRILIS177:METER:LAMBDA1"                   :"las_lambda",
+        "TRILIS177:METER:WAVENUM1"                  :"las_wavenum",
+    }
+    
+    dkeys = {"":"", **dkeys_camp, **dkeys_epics, **dkeys_ppg}
     
     # mapping from old run attributes to new run attributes
     old_attr = {  
