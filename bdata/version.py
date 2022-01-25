@@ -1,2 +1,2 @@
 # set version
-__version__ = '6.7.3'
+__version__ = '6.8.0'
