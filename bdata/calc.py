@@ -19,11 +19,11 @@ def nqr_B0_hh6(amps=None, gauss=None):
         Returns: (other unit, error)
     """    
     if amps is not None: 
-        val = amps*3.56091338,+1.57410913
+        val = amps*3.56091338+1.57410913
         err = 0.006755
         return (val, err)
     elif gauss is not None:
-        val = (gauss-1.57410913)/3.56091338,
+        val = (gauss-1.57410913)/3.56091338
         err = 0.001897
         return (val, err)
 
