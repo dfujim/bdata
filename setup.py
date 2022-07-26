@@ -33,7 +33,7 @@ setuptools.setup(
         "Operating System :: Microsoft :: Windows",
         "Development Status :: 5 - Production/Stable",
     ],
-    install_requires = ['numpy >= 1.14', 'mud-py >= 1.2.8', 'scipy>=1.2.0',
+    install_requires = ['numpy >= 1.14', 'mud-py >= 1.2.9', 'scipy>=1.2.0',
                         'requests >= 2.22.0', 'pandas >= 0.25', 
                         'iminuit >= 2.6.1'],
 )
