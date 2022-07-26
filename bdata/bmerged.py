@@ -7,7 +7,7 @@ from bdata import bdata
 from mudpy.containers import mdict, mhist, mlist, mvar
 import numpy as np
 import pandas as pd
-import re, warnings
+import re, warnings, copy
 
 class bmerged(bdata):
     """
@@ -83,7 +83,8 @@ class bmerged(bdata):
             SLR histograms are summed.
         """
         
-        hist = mlist([b.hist for b in bdata_list])
+        # make copy
+        bdata_list = mlist(copy.deepcopy(bdata_list))
         
         # these will get combined
         hist_names = ('F+', 'F-', 'B+', 'B-', 
@@ -97,6 +98,7 @@ class bmerged(bdata):
         hist_joined = mdict()
         
         # check if x values in histogram
+        hist = bdata_list.hist
         do_append = any([h in hist[0] for h in hist_xnames])
         
         # get x histogram name
@@ -119,17 +121,17 @@ class bmerged(bdata):
             if not do_append:
             
                 # get list of histograms
-                hist_list = list(hist[name])
+                hist_list = hist[name]
             
                 # check that histograms are all same length
                 len0 = len(hist_list[0])
                 if not all((len0 == len(h) for h in hist_list)):
                     
                     # check ppg parameters for source of mismatch
-                    dwell = [b.dwelltime.mean for b in bdata_list]
-                    prebeam = [b.prebeam.mean for b in bdata_list]
-                    beam_on = [b.beam_on.mean for b in bdata_list]
-                    beam_off = [b.beam_off.mean for b in bdata_list]
+                    dwell = bdata_list.dwelltime.mean
+                    prebeam = bdata_list.prebeam.mean
+                    beam_on = bdata_list.beam_on.mean
+                    beam_off = bdata_list.beam_off.mean
                     
                     # if not equal, nothing we can do
                     if not all((dwell[0] == d for d in dwell)):
@@ -157,11 +159,11 @@ class bmerged(bdata):
                                 diff = int(p - smallest)
                                 hist_list[i].data = h.data[:-diff]
                
-                hist_obj.data = np.sum(hist_list, axis=0)
+                hist_obj.data = np.sum(list(hist_list.data), axis=0)
          
             # combine runs with scans (append the data)
             else:
-                hist_obj.data = np.concatenate(hist[name].data)    
+                hist_obj.data = np.concatenate(list(hist[name].data))    
             
             # set common histogram attributes
             hist_obj.title = name
