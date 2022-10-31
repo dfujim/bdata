@@ -683,6 +683,31 @@ class bdata(mdata):
             else:                   self.area = 'BNMR'
     
     # ======================================================================= #
+    def __add__(self, other):
+        """
+            Return a bmerged object if adding to another bdata object
+        """    
+        if type(other) is bd.bdata or type(other) is bd.bmerged: 
+            return bd.bmerged([self, other])
+    
+    # ======================================================================= #
+    def __iadd__(self, other):
+        """
+            Return a bmerged object if adding to another bdata object
+        """    
+        if type(other) is bd.bdata or type(other) is bd.bmerged: 
+            self = bd.bmerged([self, other])
+            return self
+    
+    # ======================================================================= #
+    def __radd__(self, other):      
+        """
+            Return a bmerged object if adding to another bdata object
+        """ 
+        if type(other) is bd.bdata or type(other) is bd.bmerged: 
+            return self.__add__(other)
+    
+    # ======================================================================= #
     def __getattr__(self, name):
         
         if name in ('hist', 'camp', 'ppg', 'epics'):
