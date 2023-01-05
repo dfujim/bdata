@@ -2156,10 +2156,17 @@ class bdata(mdata):
             except KeyError:
                 pass
             
-            # remove negative count values, delete prebeam entries
+            # remove negative count values, background corrections, delete prebeam entries
             else:
                 for i in range(len(d)):
+
+                    # background corrections
+                    d[i] -= d[i][:n_prebeam].mean()
+
+                    # remove negative count values
                     d[i][d[i]<0] = 0.
+
+                    # delete prebeam entries
                     d[i] = np.delete(d[i], np.arange(n_prebeam))
                     
                 # check and fix 2018-2020 NQR prebeam error
