@@ -2,6 +2,7 @@
 # Derek Fujimoto
 # Feb 2023
 
+from bdata import bdata
 from numpy.testing import *
 import numpy as np
 from bdata.asym_fns import *
@@ -52,6 +53,24 @@ def test_get_alpha_err():
 
     a = get_alpha_err(f, b)
     
+def test_asym_rebin():
+    """
+        Check that the rebinning works
+    """
+
+    dat = bdata(40123, 2021)
+    
+    # rebin 1
+    dat.asym('c', rebin=1)
+
+    # rebin 2
+    dat.asym('c', rebin=2)
+
+    # rebin 10
+    dat.asym('c', rebin=10)
+
+    # rebin 20
+    dat.asym('c', rebin=20)
 
 # compare background subtraction to no backgrouns subtraction (background zero)
 def test_get_4counter_err_bkgd_zero():

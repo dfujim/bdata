@@ -2498,33 +2498,33 @@ class bdata(mdata):
             rebin = how to average the time bins
         """
         
-        # get n from ppg parameters
-        if n <= 0:
-            beam_on = self._get_ppg('beam_on')
-            beam_off = self._get_ppg('beam_off')
-            n = beam_on + beam_off
-        
-        # get time array    
-        time = (np.arange(n)+0.5)*self._get_ppg('dwelltime')/1000
-        
         # get number prebeams
         try: 
             n_prebeam = int(self._get_ppg('prebeam'))
         except KeyError:
-            pass
-        else:
-            
-            # NQR error
-            if self._is_prebeam_offbyone(): 
-                n_prebeam += 1
+            n_prebeam = 0
 
-            # prebin removal
-            if self.slr_rm_prebeam and n_prebeam > 0:
-                time = np.delete(time, n-np.arange(n_prebeam)-1)
-            
-            # prebeam shift
-            else:
-                time -= time[n_prebeam]
+        # get n from ppg parameters
+        if n <= 0:
+            beam_on = self._get_ppg('beam_on')
+            beam_off = self._get_ppg('beam_off')
+            n = beam_on + beam_off + n_prebeam
+
+        # get time array    
+        time = (np.arange(n)+0.5)*self._get_ppg('dwelltime')/1000
+
+        # NQR error
+        if self._is_prebeam_offbyone(): 
+            n_prebeam += 1
+
+        # prebin removal
+        if self.slr_rm_prebeam and n_prebeam > 0:
+            time = time[:-n_prebeam]
+            n -= n_prebeam
+        
+        # prebeam shift
+        else:
+            time -= time[n_prebeam]
 
         # rebin time
         if rebin > 1:
