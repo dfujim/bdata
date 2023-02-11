@@ -35,7 +35,7 @@ asymmetries or combining scans.
 * [`life`](https://github.com/dfujim/bdata/wiki/life) [`mdict` object]: dictionary of probe lifetimes. 
 * [`containers`](https://github.com/dfujim/bdata/wiki/containers) [module]: specially defined `mdict` objects with set function. 
 * [`exceptions`](https://github.com/dfujim/bdata/wiki/exceptions) [module]: custom exceptions and warnings for common issues 
-* [`asym_fns`](https://github.com/dfujim/bdata/wiki/asymmetry_functions) [module]: functions for calculating asymmetries and errors
+* [`asym_fns`](https://github.com/dfujim/bdata/wiki/asymmetry-functions) [module]: functions for calculating asymmetries and errors
 
 ## Citing
 
