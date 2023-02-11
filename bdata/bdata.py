@@ -800,7 +800,6 @@ class bdata(mdata):
             return beam-bias15-platform # keV
     
     # ======================================================================= #
-    # TODO: NEEDS CORRECTING
     def _correct_baseline_combined(self, freq, F1, F2, B1, B2, options):
         """
             Correct sloped scan baseline in the case of combined asym calculation 
@@ -949,7 +948,6 @@ class bdata(mdata):
         return (freq, (a, da))
     
     # ======================================================================= #
-    # TODO: NEEDS CORRECTING
     def _correct_baseline_simple(self, freq, F, B, options): 
         """
             Correct sloped scan baseline in the case of simple asym calculation 
@@ -1165,6 +1163,61 @@ class bdata(mdata):
         return [np.copy(self.hist[h].data) for h in hist_select]
 
     # ======================================================================= #
+    def _get_asym_alpha(self, d_alpha, d_beta):
+        """
+            Find alpha diffusion ratio error from cryo oven with alpha detectors. 
+            a: list of alpha detector histograms (each helicity)
+            b: list of beta  detector histograms (each helicity)
+            
+            a/b = list: [1+ 1- 2+ 2-], where 1 = F/R and 2 = B/L
+        """
+
+        # get number prebeam bins
+        try:
+            n_prebeam = int(self._get_ppg('prebeam'))
+
+        # some old runs don't log prebeam values
+        except KeyError:
+            n_prebeam = 0
+        
+        # look for that NQR DAQ error    
+        else:
+            if self._is_prebeam_offbyone(): 
+                n_prebeam += 1
+
+        # do background corrections and get error
+        if self.slr_bkgd_corr and n_prebeam > 0:
+            
+            # error with background corrected
+            da = asy.get_alpha_err_bkgd(d_alpha, d_beta, n_prebeam)
+            
+            # background correction
+            for i in range(len(d_beta)):
+                d_beta[i] -= d_beta[i][:n_prebeam].mean()
+                d_beta[i][d_beta[i] < 0] = 0
+
+            for i in range(len(d_alpha)):
+                d_alpha[i] -= d_alpha[i][:n_prebeam].mean()
+                d_alpha[i][d_alpha[i] < 0] = 0
+            
+        # get error no background corrections
+        else:
+            if self.slr_bkgd_corr:
+                warnings.warn(f'{self.year}.{self.run}: No prebeam values listed. Proceeding without background corrections')
+
+            da = asy.get_alpha_err(d_alpha, d_beta)
+
+        # get asymmetry
+        a = asy.get_alpha(d_alpha, d_beta)
+
+        # delete prebeam entries
+        if self.slr_rm_prebeam:
+            a = np.delete(a, np.arange(n_prebeam))
+            da = np.delete(da, np.arange(n_prebeam))
+        
+        return (a, da)
+        
+    # ======================================================================= #
     def _get_asym_alpha_tag(self, a, b):
         """
             Find asymmetry from cryo oven with alpha detectors. 
@@ -1308,7 +1361,6 @@ class bdata(mdata):
             Get asymmetry for slr files, processing the prebeam and background corrections. 
             d: array of histograms corresponding to counters
             simple: if true, do simple calculation, else do 4counter, as defined in bdata.asym_fns
-
         """
 
         # get appropriate functions
@@ -2122,13 +2174,6 @@ class bdata(mdata):
                                                     
             # deadtime correction
             d = self._correct_deadtime(d, deadtime)
-            
-            # TODO: FIX THIS
-            # delete alpha prebeam bins
-            # if self.mode == '2h':    
-            #     for i in range(len(d_alpha)):
-            #         d_alpha[i][d_alpha[i]<0] = 0.
-            #         d_alpha[i] = np.delete(d_alpha[i], np.arange(n_prebeam))
                 
             # get helicity data
             if option not in ('combined', 'forward_counter', 'backward_counter'):
@@ -2172,8 +2217,7 @@ class bdata(mdata):
                 
             elif option == 'alpha_diffusion': # ------------------------------
                 try:
-                    # TODO: FIX THIS WITH BACKGROUND CORRECTIONS
-                    asym = [asy.get_alpha(d_alpha, d), asy.get_alpha_err(d_alpha, d)]
+                    asym = self._get_asym_alpha(d_alpha, d)
                 except UnboundLocalError as err:
                     if self.mode != '2h':
                         raise InputError('Run is not in 2h mode.')
@@ -2181,7 +2225,6 @@ class bdata(mdata):
             
             elif option == 'alpha_tagged': # ---------------------------------
                 try:
-                    # TODO: FIX THIS WITH BACKGROUND CORRECTIONS
                     asym = self._get_asym_alpha_tag(d_alpha, d)  
                 except UnboundLocalError as err:
                     if self.mode != '2h':

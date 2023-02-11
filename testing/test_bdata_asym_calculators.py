@@ -56,3 +56,17 @@ def test_get_asym_neg():
 
     assert all(a == 0), 'SLR neg'
     assert all(da == 2*np.sqrt(1/8)), 'SLR neg err'
+    
+def test_get_asym_alpha():
+
+    fn = bdata._get_asym_alpha
+
+    F = np.ones(10)
+    B = np.ones(10)*2
+
+    inptF = np.array([F]*4)
+    inptB = np.array([B]*4)
+    a, da = fn(bdat, inptF, inptB)
+
+    assert all(a == 1/4), 'SLR alpha'
+    # assert all(da == 2*np.sqrt(1/8)), 'SLR neg err'

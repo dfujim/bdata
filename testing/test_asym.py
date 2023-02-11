@@ -42,6 +42,16 @@ def test_get_alpha():
 
     a = get_alpha(f, b)
     assert all(a == 1/4)
+    
+def test_get_alpha_err():
+    Fp = np.ones(10)
+    Bp = np.ones(10)*2
+
+    f = [Fp]*4
+    b = [Bp]*4
+
+    a = get_alpha_err(f, b)
+    
 
 # compare background subtraction to no backgrouns subtraction (background zero)
 def test_get_4counter_err_bkgd_zero():
