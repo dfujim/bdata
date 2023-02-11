@@ -9,7 +9,7 @@ import os, re
 import datetime, warnings, requests
 from .exceptions import MinimizationError, InputError, DkeyWarning, IOWarning
 from .containers import hdict, vdict
-import bdata.asym as asy
+import bdata.asym_fns as asy
 
 from mudpy import mdata
 from mudpy.containers import mdict
@@ -1110,35 +1110,6 @@ class bdata(mdata):
         return dnew
         
     # ======================================================================= #
-    def _is_prebeam_offbyone(self):
-        """
-            Check for the prebeam off by one error in NQR 20 and 2e runs, 
-            starting in 2018 (all runs) and ending with 45262 in 2020 (inclusive). 
-            
-            Issue: extra prebeam bin assigned. 
-            
-            Inputs: d - list of histograms
-        """
-        
-        # check if fix is needed
-        if self.area.lower() == 'bnqr' and 2018 <= self.year <= 2020:
-            if self.year == 2020 and self.run > 45262:
-                return False
-            else: 
-                
-                n_prebeam = 0
-                try:
-                    n_prebeam = int(self._get_ppg('prebeam'))
-                except KeyError:
-                    pass
-
-                # double check if fix is needed
-                if np.sum(np.array(d)[:, prebeam]) > 100:
-                    return False
-                
-                return True
-                        
-    # ======================================================================= #
     def _get_area_data(self, nbm=False, hist_select=''):
         """Get histogram list based on area type.
         
@@ -1222,7 +1193,6 @@ class bdata(mdata):
         return (hel_coin, hel_no_coin, hel_reg, com_coin, com_no_coin, com_reg)
     
     # ======================================================================= #
-    # TODO: NEEDS CORRECTING
     def _get_asym_bck(self, d, freq=None, options=''):
         """
             Find the asymmetry of backward counter using the asymmetries. 
@@ -1236,9 +1206,7 @@ class bdata(mdata):
         if '1' in self.mode: 
             return self._correct_baseline_simple(freq, F, B, options)
         elif '2' in self.mode:
-            a = asy.get_simple(F, B)
-            da = asy.get_simple_err(F, B)
-            return [a, da]
+            return self._get_asym_slr([F, B], simple=True)
         
     # ======================================================================= #
     def _get_asym_comb(self, d, freq=None, options=''):
@@ -1253,47 +1221,7 @@ class bdata(mdata):
         
         # SLR
         elif '2' in self.mode:
-
-            # get number prebeam bins
-            try:
-                n_prebeam = int(self._get_ppg('prebeam'))
-
-            # some old runs don't log prebeam values
-            except KeyError:
-                n_prebeam = 0
-            
-            # look for that NQR DAQ error    
-            else:
-                if self._is_prebeam_offbyone(): 
-                    n_prebeam += 1
-
-            # do background corrections and get error
-            if self.slr_bkgd_corr and n_prebeam > 0:
-                
-                # error with background corrected
-                da = asy.get_4counter_err_bkgd(*d, n_prebeam)
-                
-                # background correction
-                for i in range(len(d)):
-                    d[i] -= d[i][:n_prebeam].mean()
-                    d[i][d[i] < 0] = 0
-                
-            # get error no background corrections
-            else:
-                if self.slr_bkgd_corr:
-                    warnings.warn(f'{self.year}.{self.run}: No prebeam values listed. Proceeding without background corrections')
-
-                da = asy.get_4counter_err(*d)
-
-            # get asymmetry
-            a = asy.get_4counter(*d)
-
-            # delete prebeam entries
-            if self.slr_rm_prebeam:
-                a = np.delete(a, np.arange(n_prebeam))
-                da = np.delete(da, np.arange(n_prebeam))
-            
-            return (a, da)
+            return self._get_asym_slr(d, simple=False)
     
     # ======================================================================= #
     def _get_asym_counter(self, d):
@@ -1312,7 +1240,6 @@ class bdata(mdata):
         return [fwd, bck]  
         
     # ======================================================================= #
-    # TODO: NEEDS CORRECTING
     def _get_asym_fwd(self, d, freq=None, options=''):
         """
             Find the asymmetry of forward counter using the asymmetries. 
@@ -1326,9 +1253,7 @@ class bdata(mdata):
         if '1' in self.mode: 
             return self._correct_baseline_simple(freq, F, B, options)
         elif '2' in self.mode:
-            a = asy.get_simple(F, B)
-            da = asy.get_simple_err(F, B)
-            return [a, da]
+            return self._get_asym_slr([F, B], simple=True)
         
     # ======================================================================= #
     def _get_asym_hel(self, d):
@@ -1347,7 +1272,6 @@ class bdata(mdata):
         return [pos, neg]
                         
     # ======================================================================= #
-    # TODO: NEEDS CORRECTING
     def _get_asym_neg(self, d, freq=None, options=''):
         """
             Find the negative helicity asymmetry. 
@@ -1361,12 +1285,9 @@ class bdata(mdata):
         if '1' in self.mode: 
             return self._correct_baseline_simple(freq, F, B, options)
         elif '2' in self.mode:
-            a = asy.get_simple(F, B)
-            da = asy.get_simple_err(F, B)
-            return [a, da]
-        
+            return self._get_asym_slr([F, B], simple=True)
+            
     # ======================================================================= #
-    # TODO: NEEDS CORRECTING
     def _get_asym_pos(self, d, freq=None, options=''):
         """
             Find the positive helicity asymmetry. 
@@ -1380,10 +1301,68 @@ class bdata(mdata):
         if '1' in self.mode: 
             return self._correct_baseline_simple(freq, F, B, options)
         elif '2' in self.mode:
-            a = asy.get_simple(F, B)
-            da = asy.get_simple_err(F, B)
-            return [a, da]
+            return self._get_asym_slr([F, B], simple=True)
                 
+    # ======================================================================= #
+    def _get_asym_slr(self, d, simple):
+        """
+            Get asymmetry for slr files, processing the prebeam and background corrections. 
+            d: array of histograms corresponding to counters
+            simple: if true, do simple calculation, else do 4counter, as defined in bdata.asym_fns
+
+        """
+
+        # get appropriate functions
+        if simple:
+            asym_fn = asy.get_simple
+            asym_fn_err = asy.get_simple_err
+            asym_fn_err_bkgd = asy.get_simple_err_bkgd
+        else:
+            asym_fn = asy.get_4counter
+            asym_fn_err = asy.get_4counter_err
+            asym_fn_err_bkgd = asy.get_4counter_err_bkgd
+
+        # get number prebeam bins
+        try:
+            n_prebeam = int(self._get_ppg('prebeam'))
+
+        # some old runs don't log prebeam values
+        except KeyError:
+            n_prebeam = 0
+        
+        # look for that NQR DAQ error    
+        else:
+            if self._is_prebeam_offbyone(): 
+                n_prebeam += 1
+
+        # do background corrections and get error
+        if self.slr_bkgd_corr and n_prebeam > 0:
+            
+            # error with background corrected
+            da = asym_fn_err_bkgd(*d, n_prebeam)
+            
+            # background correction
+            for i in range(len(d)):
+                d[i] -= d[i][:n_prebeam].mean()
+                d[i][d[i] < 0] = 0
+            
+        # get error no background corrections
+        else:
+            if self.slr_bkgd_corr:
+                warnings.warn(f'{self.year}.{self.run}: No prebeam values listed. Proceeding without background corrections')
+
+            da = asym_fn_err(*d)
+
+        # get asymmetry
+        a = asym_fn(*d)
+
+        # delete prebeam entries
+        if self.slr_rm_prebeam:
+            a = np.delete(a, np.arange(n_prebeam))
+            da = np.delete(da, np.arange(n_prebeam))
+
+        return (a, da)
+
     # ======================================================================= #
     def _get_baseline_slope(self, freq, scan, dscan, baseline_bins):
         """
@@ -1669,6 +1648,35 @@ class bdata(mdata):
         # get data
         return self.hist[xlabel].data
             
+    # ======================================================================= #
+    def _is_prebeam_offbyone(self):
+        """
+            Check for the prebeam off by one error in NQR 20 and 2e runs, 
+            starting in 2018 (all runs) and ending with 45262 in 2020 (inclusive). 
+            
+            Issue: extra prebeam bin assigned. 
+            
+            Inputs: d - list of histograms
+        """
+        
+        # check if fix is needed
+        if self.area.lower() == 'bnqr' and 2018 <= self.year <= 2020:
+            if self.year == 2020 and self.run > 45262:
+                return False
+            else: 
+                
+                n_prebeam = 0
+                try:
+                    n_prebeam = int(self._get_ppg('prebeam'))
+                except KeyError:
+                    pass
+
+                # double check if fix is needed
+                if np.sum(np.array(d)[:, prebeam]) > 100:
+                    return False
+                
+                return True
+                  
     # ======================================================================= #
     def _kill_bins(self, d, ranges):
         """
@@ -2112,42 +2120,16 @@ class bdata(mdata):
             
         # SLR -----------------------------------------------------------------
         if self.mode in ("20", '2h', "00"):
-            
-            # get the number of prebeam bins
-            try:
-                n_prebeam = int(self._get_ppg('prebeam'))
-            
-            # some old runs don't log prebeam values
-            except KeyError:
-                pass
-            
-            # remove negative count values, background corrections, delete prebeam entries
-            # else:
-                # for i in range(len(d)):
-
-                    # background corrections
-                    # d[i] -= d[i][:n_prebeam].mean()
-
-                    # remove negative count values
-                    # d[i][d[i]<0] = 0.
-
-                    # delete prebeam entries
-                    # d[i] = np.delete(d[i], np.arange(n_prebeam))
-                    
-                # check and fix 2018-2020 NQR prebeam error
-                # d = self._fix_prebeam_offbyone(d)
-                
-                # if self.mode == '2h':
-                    # d_alpha = self._fix_prebeam_offbyone(d_alpha)
                                                     
             # deadtime correction
             d = self._correct_deadtime(d, deadtime)
             
+            # TODO: FIX THIS
             # delete alpha prebeam bins
-            if self.mode == '2h':    
-                for i in range(len(d_alpha)):
-                    d_alpha[i][d_alpha[i]<0] = 0.
-                    d_alpha[i] = np.delete(d_alpha[i], np.arange(n_prebeam))
+            # if self.mode == '2h':    
+            #     for i in range(len(d_alpha)):
+            #         d_alpha[i][d_alpha[i]<0] = 0.
+            #         d_alpha[i] = np.delete(d_alpha[i], np.arange(n_prebeam))
                 
             # get helicity data
             if option not in ('combined', 'forward_counter', 'backward_counter'):

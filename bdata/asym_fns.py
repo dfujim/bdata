@@ -126,7 +126,7 @@ def get_simple(F, B):
 # ======================================================================= #
 def get_simple_err(F, B):
     """
-        Do the simple asymmetry calculation: F-B / F+B (get the error)
+        Get the error of the simple asymmetry calculation (F-B / F+B)
         Inputs are counter np.arrays
     """
     
@@ -139,6 +139,48 @@ def get_simple_err(F, B):
     # errors 
     # https://www.wolframalpha.com/input/?i=%E2%88%9A(F*(derivative+of+((F-B)%2F(F%2BB))+with+respect+to+F)%5E2+%2B+B*(derivative+of+((F-B)%2F(F%2BB))+with+respect+to+B)%5E2)
     asym_err = 2*np.sqrt(F*B/np.power(denom, 3))
+    
+    # remove nan            
+    asym_err[np.isnan(asym_err)] = 0.
+        
+    return asym_err
+    
+# ======================================================================= #
+def get_simple_err_bkgd(F, B, n_prebeam):
+    """
+        Get the error of the simple asymmetry calculation (F-B / F+B) in the case of background corrections.
+        Inputs are counter np.arrays, uncorrected, and the number of prebeam bins
+    """
+    
+    # convert input to list
+    d = [F, B]
+
+    # get background correction means and variance in the mean
+    d_bkmean = [np.mean(di[:n_prebeam]) for di in d]
+    d_bkvar  = [np.var(di[:n_prebeam])/n_prebeam for di in d]
+
+    # get variances in these new histograms: combine poisson and gaussian variances
+    d_var = [d[i] + d_bkvar[i] for i in range(len(d))]
+
+    # correct histograms using background mean
+    d = [d[i]-d_bkmean[i] for i in range(len(d))]
+    
+    # remove negative count values and check for div by zero
+    for i in range(len(d)):
+        d[i][d[i]<=0] = np.nan
+
+    # re-expand to human-readable variables
+    F, B = d
+    vF, vB = d_var
+
+    # pre-calcs
+    denom = F+B
+    
+    # check for div by zero
+    denom[denom==0] = np.nan          
+    
+    # errors 
+    asym_err = 2 * np.sqrt( vF*(B/(F+B)**2)**2 + vB*(F/(F+B)**2)**2)
     
     # remove nan            
     asym_err[np.isnan(asym_err)] = 0.
