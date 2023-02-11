@@ -69,4 +69,3 @@ def test_get_asym_alpha():
     a, da = fn(bdat, inptF, inptB)
 
     assert all(a == 1/4), 'SLR alpha'
-    # assert all(da == 2*np.sqrt(1/8)), 'SLR neg err'
