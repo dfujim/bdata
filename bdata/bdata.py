@@ -1165,7 +1165,6 @@ class bdata(mdata):
         return [np.copy(self.hist[h].data) for h in hist_select]
 
     # ======================================================================= #
-    # TODO: NEEDS CORRECTING
     def _get_asym_alpha_tag(self, a, b):
         """
             Find asymmetry from cryo oven with alpha detectors. 

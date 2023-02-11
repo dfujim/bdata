@@ -248,3 +248,48 @@ def get_alpha_err(a, b):
     dasym = asym*np.sqrt(1/asum + 1/bsum)
     
     return dasym
+    
+# ======================================================================= #
+def get_alpha_err_bkgd(a, b, n_prebeam):
+    """
+        Find alpha diffusion ratio error from cryo oven with alpha detectors, 
+        including background subtraction
+        a: list of alpha detector histograms (each helicity)
+        b: list of beta  detector histograms (each helicity)
+        
+        a/b = list: [1+ 1- 2+ 2-], where 1 = F/R and 2 = B/L
+    """
+    
+    # just  use AL0
+    try:
+        a = a[2:4]
+    except IndexError:
+        a = a[:2]
+        
+    # sum counts in alpha detectors
+    asum = np.sum(a, axis=0)
+    
+    # sum counts in beta detectors
+    bsum = np.sum(b, axis=0)
+    
+    # background variances
+    avar = np.var(asum[:n_prebeam])
+    bvar = np.var(bsum[:n_prebeam])
+    
+    # variances in sums
+    asum_var = avar + asum
+    bsum_var = bvar + bsum
+
+    # background correction
+    asum -= np.mean(asum[:n_prebeam])
+    bsum -= np.mean(bsum[:n_prebeam])
+
+    # check for dividing by zero 
+    asum[asum == 0] = np.nan
+    bsum[bsum == 0] = np.nan
+    
+    # errors
+    asym = asum/bsum
+    dasym = asym*np.sqrt(asum_var/asum**2 + bsum_var/bsum**2)
+    
+    return dasym
