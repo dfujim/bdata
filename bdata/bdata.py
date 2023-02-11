@@ -3,16 +3,16 @@
 # Derek Fujimoto
 # July 2017
 
-import bdata as bd
 import numpy as np
 import pandas as pd
-import os, glob, re
+import os, re
 import datetime, warnings, requests
 from .exceptions import MinimizationError, InputError, DkeyWarning, IOWarning
 from .containers import hdict, vdict
+import bdata.asym as asy
 
 from mudpy import mdata
-from mudpy.containers import mdict, mvar, mhist
+from mudpy.containers import mdict
 from iminuit import Minuit
 from scipy.optimize import curve_fit
 
@@ -98,31 +98,12 @@ class bdata(mdata):
             evar_bnqr
             
         Data fields
+            slr_bkgd_corr: if true subtract hist prebeam mean from bins (SLR only)
+            slr_rm_prebeam: if true remove prebeam bins from output (SLR only)
             ppg
             epics
             camp
-            + inherited fields from mdata
-                        
-        Public functions
-            asym
-            beam_kev
-            pulse_off_s
-            
-        Private worker functions
-            __init__
-            __getattr__
-            __repr__
-            __setattr__
-            _get_area_data
-            _get_asym_hel
-            _get_asym_comb
-            _get_asym_alpha
-            _get_asym_alpha_tag
-            _get_1f_sum_scans
-            _get_2e_asym
-            _get_ppg
-            _get_xhist
-            _rebin
+            + inherited fields from mdata    
     """
     
     # set nice dictionary keys 
@@ -626,7 +607,7 @@ class bdata(mdata):
             for v in self.ivar.values(): 
                 if 'PPG' in v.title:
                     title = v.title.split("/")[-1].lower()
-                    title_default = re.sub('\W', '', title.replace(' ', '_'))            
+                    title_default = re.sub(r'\W', '', title.replace(' ', '_'))            
                     
                     # check for 1x mode keys
                     if title not in bdata.dkeys.keys():
@@ -650,11 +631,11 @@ class bdata(mdata):
                     pass
                 elif v.title[0] == "/":
                     title = v.title.lower()
-                    title_default = re.sub('\W', '', title.replace(' ', '_'))
+                    title_default = re.sub(r'\W', '', title.replace(' ', '_'))
                     self.camp[bdata.dkeys.get(title, title_default)] = v
                 else:
                     title = v.title.lower()
-                    title_default = re.sub('\W', '', title.replace(' ', '_'))
+                    title_default = re.sub(r'\W', '', title.replace(' ', '_'))
                     self.epics[bdata.dkeys.get(title, title_default)] = v
                     
                 if title not in bdata.dkeys.keys() and 'fine freq' not in title:
@@ -682,6 +663,10 @@ class bdata(mdata):
             if self.run >= 45000:   self.area = 'BNQR'
             else:                   self.area = 'BNMR'
     
+        # some defaults
+        self.slr_bkgd_corr = True
+        self.slr_rm_prebeam = True
+
     # ======================================================================= #
     def __add__(self, other):
         """
@@ -815,6 +800,7 @@ class bdata(mdata):
             return beam-bias15-platform # keV
     
     # ======================================================================= #
+    # TODO: NEEDS CORRECTING
     def _correct_baseline_combined(self, freq, F1, F2, B1, B2, options):
         """
             Correct sloped scan baseline in the case of combined asym calculation 
@@ -898,7 +884,8 @@ class bdata(mdata):
                     assert all(freq1 == freq2), 'Frequency arrays not equal'
                     
                     # get asym
-                    a, da = self._get_asym_4counter(F1, F2, B1, B2)
+                    a = asy.get_4counter(F1, F2, B1, B2)
+                    da = asy.get_4counter_err(F1, F2, B1, B2)
                     
                     return (freq1, a ,da)
                 
@@ -956,12 +943,14 @@ class bdata(mdata):
         freq, (F1, F2, B1, B2) = scan_comb_fn([F1, F2, B1, B2], freq)
                 
         # get asym
-        a, da = self._get_asym_4counter(F1, F2, B1, B2)
+        a = asy.get_4counter(F1, F2, B1, B2)
+        da = asy.get_4counter_err(F1, F2, B1, B2)
         
         return (freq, (a, da))
     
     # ======================================================================= #
-    def _correct_baseline_simple(self, freq, F, B, options):
+    # TODO: NEEDS CORRECTING
+    def _correct_baseline_simple(self, freq, F, B, options): 
         """
             Correct sloped scan baseline in the case of simple asym calculation 
             d = list: [1+ 1- 2+ 2-], where 1 = F/R and 2 = B/L
@@ -990,7 +979,8 @@ class bdata(mdata):
                 for f, b, fq in zip(F_spl, B_spl, freq_spl):
                     
                     # get pre-modified asym
-                    a, da = self._get_asym_simple(f, b)    
+                    a = asy.get_simple(f, b)    
+                    da = asy.get_simple_err(f, b)    
                                     
                     # get slopes
                     sl = self._get_baseline_slope(fq, a, da, baseline_bins)
@@ -1014,11 +1004,11 @@ class bdata(mdata):
                         a = []
                         da = []
                         for f, b in zip(F, B):
-                            a2 = self._get_asym_simple(f, b)
-                            a.append(a2[0]) 
-                            da.append(a2[1]) 
+                            a.append(asy.get_simple(f, b)) 
+                            da.append(asy.get_simple_err(f, b)) 
                     else:
-                        a, da = self._get_asym_simple(F, B) 
+                        a = asy.get_simple(F, B) 
+                        da = asy.get_simple_err(F, B) 
                     
                     return (freq, a, da)
                 
@@ -1064,13 +1054,13 @@ class bdata(mdata):
             a = [] 
             da = []
             for f, b in zip(F, B):
-                asym = self._get_asym_simple(f, b)
-                a.append(asym[0])
-                da.append(asym[1])
+                a.append(asy.get_simple(f, b))
+                da.append(asy.get_simple_err(f, b))
         
         # get asym: combined scans
         else:
-            a, da = self._get_asym_simple(F, B)
+            a = asy.get_simple(F, B)
+            da = asy.get_simple_err(F, B)
         
         return (freq, (a, da))
         
@@ -1120,10 +1110,10 @@ class bdata(mdata):
         return dnew
         
     # ======================================================================= #
-    def _fix_prebeam_offbyone(self, d):
+    def _is_prebeam_offbyone(self):
         """
-            Fix the prebeam off by one error in NQR 20 and 2e runs, starting in 
-            2018 (all runs) and ending with 45262 in 2020 (inclusive). 
+            Check for the prebeam off by one error in NQR 20 and 2e runs, 
+            starting in 2018 (all runs) and ending with 45262 in 2020 (inclusive). 
             
             Issue: extra prebeam bin assigned. 
             
@@ -1133,17 +1123,20 @@ class bdata(mdata):
         # check if fix is needed
         if self.area.lower() == 'bnqr' and 2018 <= self.year <= 2020:
             if self.year == 2020 and self.run > 45262:
-                pass
+                return False
             else: 
                 
+                n_prebeam = 0
+                try:
+                    n_prebeam = int(self._get_ppg('prebeam'))
+                except KeyError:
+                    pass
+
                 # double check if fix is needed
-                if np.sum(np.array(d)[:, 0]) > 100:
-                    return d
+                if np.sum(np.array(d)[:, prebeam]) > 100:
+                    return False
                 
-                # do the fix: remove extra bin
-                for i in range(len(d)):                    
-                    d[i] = np.delete(d[i], [0])
-        return d
+                return True
                         
     # ======================================================================= #
     def _get_area_data(self, nbm=False, hist_select=''):
@@ -1201,40 +1194,7 @@ class bdata(mdata):
         return [np.copy(self.hist[h].data) for h in hist_select]
 
     # ======================================================================= #
-    def _get_asym_alpha(self, a, b):
-        """
-            Find alpha diffusion ratios from cryo oven with alpha detectors. 
-            a: list of alpha detector histograms (each helicity)
-            b: list of beta  detector histograms (each helicity)
-            
-            a/b = list: [1+ 1- 2+ 2-], where 1 = F/R and 2 = B/L
-        """
-        
-        # just  use AL0
-        try:
-            a = a[2:4]
-        except IndexError:
-            a = a[:2]
-            
-        # sum counts in alpha detectors
-        asum = np.sum(a, axis=0)
-        
-        # sum counts in beta detectors
-        bsum = np.sum(b, axis=0)
-        
-        # check for dividing by zero 
-        asum[asum == 0] = np.nan
-        bsum[bsum == 0] = np.nan
-        
-        # asym calcs
-        asym = asum/bsum
-        
-        # errors
-        dasym = asym*np.sqrt(1/asum + 1/bsum)
-        
-        return [asym, dasym]
-
-    # ======================================================================= #
+    # TODO: NEEDS CORRECTING
     def _get_asym_alpha_tag(self, a, b):
         """
             Find asymmetry from cryo oven with alpha detectors. 
@@ -1262,6 +1222,7 @@ class bdata(mdata):
         return (hel_coin, hel_no_coin, hel_reg, com_coin, com_no_coin, com_reg)
     
     # ======================================================================= #
+    # TODO: NEEDS CORRECTING
     def _get_asym_bck(self, d, freq=None, options=''):
         """
             Find the asymmetry of backward counter using the asymmetries. 
@@ -1275,8 +1236,65 @@ class bdata(mdata):
         if '1' in self.mode: 
             return self._correct_baseline_simple(freq, F, B, options)
         elif '2' in self.mode:
-            return self._get_asym_simple(F, B)    
+            a = asy.get_simple(F, B)
+            da = asy.get_simple_err(F, B)
+            return [a, da]
         
+    # ======================================================================= #
+    def _get_asym_comb(self, d, freq=None, options=''):
+        """
+        Find the combined asymmetry for slr runs. Elegant 4-counter method.
+        d = list: [1+ 1- 2+ 2-], where 1 = F/R and 2 = B/L
+        """
+
+        # resonance
+        if '1' in self.mode: 
+            return self._correct_baseline_combined(freq, *d, options)
+        
+        # SLR
+        elif '2' in self.mode:
+
+            # get number prebeam bins
+            try:
+                n_prebeam = int(self._get_ppg('prebeam'))
+
+            # some old runs don't log prebeam values
+            except KeyError:
+                n_prebeam = 0
+            
+            # look for that NQR DAQ error    
+            else:
+                if self._is_prebeam_offbyone(): 
+                    n_prebeam += 1
+
+            # do background corrections and get error
+            if self.slr_bkgd_corr and n_prebeam > 0:
+                
+                # error with background corrected
+                da = asy.get_4counter_err_bkgd(*d, n_prebeam)
+                
+                # background correction
+                for i in range(len(d)):
+                    d[i] -= d[i][:n_prebeam].mean()
+                    d[i][d[i] < 0] = 0
+                
+            # get error no background corrections
+            else:
+                if self.slr_bkgd_corr:
+                    warnings.warn(f'{self.year}.{self.run}: No prebeam values listed. Proceeding without background corrections')
+
+                da = asy.get_4counter_err(*d)
+
+            # get asymmetry
+            a = asy.get_4counter(*d)
+
+            # delete prebeam entries
+            if self.slr_rm_prebeam:
+                a = np.delete(a, np.arange(n_prebeam))
+                da = np.delete(da, np.arange(n_prebeam))
+            
+            return (a, da)
+    
     # ======================================================================= #
     def _get_asym_counter(self, d):
         """
@@ -1294,6 +1312,7 @@ class bdata(mdata):
         return [fwd, bck]  
         
     # ======================================================================= #
+    # TODO: NEEDS CORRECTING
     def _get_asym_fwd(self, d, freq=None, options=''):
         """
             Find the asymmetry of forward counter using the asymmetries. 
@@ -1307,7 +1326,9 @@ class bdata(mdata):
         if '1' in self.mode: 
             return self._correct_baseline_simple(freq, F, B, options)
         elif '2' in self.mode:
-            return self._get_asym_simple(F, B)    
+            a = asy.get_simple(F, B)
+            da = asy.get_simple_err(F, B)
+            return [a, da]
         
     # ======================================================================= #
     def _get_asym_hel(self, d):
@@ -1324,54 +1345,9 @@ class bdata(mdata):
 
         # exit
         return [pos, neg]
-                
+                        
     # ======================================================================= #
-    def _get_asym_comb(self, d, freq=None, options=''):
-        """
-        Find the combined asymmetry for slr runs. Elegant 4-counter method.
-        d = list: [1+ 1- 2+ 2-], where 1 = F/R and 2 = B/L
-        """
-
-        # get counter identifies
-        Fp, Fn, Bp, Bn = d
-        
-        # choose calculation method
-        if '1' in self.mode: 
-            return self._correct_baseline_combined(freq, Fp, Fn, Bp, Bn, options)
-        elif '2' in self.mode:
-            return self._get_asym_4counter(Fp, Fn, Bp, Bn)
-        
-    # ======================================================================= #
-    def _get_asym_4counter(self, Fp, Fn, Bp, Bn):
-        """
-        Find the combined asymmetry for slr runs. Elegant 4-counter method.
-        """
-
-        # pre-calcs
-        r_denom = Fp*Bn
-        r_denom[r_denom==0] = np.nan
-        r = np.sqrt((Bp*Fn/r_denom))
-        r[r==-1] = np.nan
-    
-        # combined asymmetry
-        asym_comb = (r-1)/(r+1)
-        
-        # check for div by zero
-        Fp[Fp==0] = np.nan                  
-        Bp[Bp==0] = np.nan
-        Fn[Fn==0] = np.nan
-        Bn[Bn==0] = np.nan
-        
-        # error in combined asymmetry
-        asym_comb_err = r*np.sqrt(1/Bp + 1/Fp + 1/Bn + 1/Fn)/np.square(r+1)
-        
-        # replace nan with zero 
-        asym_comb[np.isnan(asym_comb)] = 0.
-        asym_comb_err[np.isnan(asym_comb_err)] = 0.
-        
-        return [asym_comb, asym_comb_err]
-
-    # ======================================================================= #
+    # TODO: NEEDS CORRECTING
     def _get_asym_neg(self, d, freq=None, options=''):
         """
             Find the negative helicity asymmetry. 
@@ -1385,9 +1361,12 @@ class bdata(mdata):
         if '1' in self.mode: 
             return self._correct_baseline_simple(freq, F, B, options)
         elif '2' in self.mode:
-            return self._get_asym_simple(F, B)    
+            a = asy.get_simple(F, B)
+            da = asy.get_simple_err(F, B)
+            return [a, da]
         
     # ======================================================================= #
+    # TODO: NEEDS CORRECTING
     def _get_asym_pos(self, d, freq=None, options=''):
         """
             Find the positive helicity asymmetry. 
@@ -1401,33 +1380,10 @@ class bdata(mdata):
         if '1' in self.mode: 
             return self._correct_baseline_simple(freq, F, B, options)
         elif '2' in self.mode:
-            return self._get_asym_simple(F, B)    
-            
-    # ======================================================================= #
-    def _get_asym_simple(self, F, B):
-        """
-            Do the simple asymmetry calculation: F-B / F+B
-        """
-        
-        # pre-calcs
-        denom = F+B
-        
-        # check for div by zero
-        denom[denom==0] = np.nan          
-        
-        # asymmetries
-        asym = (F-B)/denom
-                    
-        # errors 
-        # https://www.wolframalpha.com/input/?i=%E2%88%9A(F*(derivative+of+((F-B)%2F(F%2BB))+with+respect+to+F)%5E2+%2B+B*(derivative+of+((F-B)%2F(F%2BB))+with+respect+to+B)%5E2)
-        asym_err = 2*np.sqrt(F*B/np.power(denom, 3))
-        
-        # remove nan            
-        asym[np.isnan(asym)] = 0.
-        asym_err[np.isnan(asym_err)] = 0.
-         
-        return [asym, asym_err]
-    
+            a = asy.get_simple(F, B)
+            da = asy.get_simple_err(F, B)
+            return [a, da]
+                
     # ======================================================================= #
     def _get_baseline_slope(self, freq, scan, dscan, baseline_bins):
         """
@@ -1907,11 +1863,13 @@ class bdata(mdata):
     
     # ======================================================================= #
     def asym(self, option="", omit="", rebin=1, hist_select='', nbm=False, 
-             deadtime=0, scan_repair_options=''):
+             deadtime=0, scan_repair_options='', slr_bkgd_corr=True, 
+             slr_rm_prebeam=True):
         """Calculate and return the asymmetry for various run types. 
            
         usage: asym(option="", omit="", rebin=1, hist_select='', nbm=False, 
-                    deadtime=0, scan_repair_options='')
+                    deadtime=0, scan_repair_options='', slr_bkgd_corr=True, 
+                    slr_rm_prebeam=True)
             
         Inputs:
             option:             see below for details
@@ -1958,6 +1916,9 @@ class bdata(mdata):
                                             scans are combined. Functions are 
                                             applied to raw counts, not asym. 
                                             Default: scan_sum
+            slr_bkgd_corr:      bool, if True subtract prebeam bin averages 
+                                to correct histograms before asymmetry calculation
+            slr_rm_prebeam:      bool, if True remove prebeam bins from output
                                             
         Asymmetry calculation outline (with default detectors) ---------------
         
@@ -2125,7 +2086,11 @@ class bdata(mdata):
             'sl_n':     [ve][f] negative helicity.
             'sl_c':     [ve][f] combined helicity.
         """
-                                
+        
+        # save some settigns
+        self.slr_bkgd_corr = slr_bkgd_corr
+        self.slr_rm_prebeam = slr_rm_prebeam
+
         # check for additonal options (1F)
         if omit != '':
             further_options = list(map(str.strip, omit.split(' ')))
@@ -2157,23 +2122,23 @@ class bdata(mdata):
                 pass
             
             # remove negative count values, background corrections, delete prebeam entries
-            else:
-                for i in range(len(d)):
+            # else:
+                # for i in range(len(d)):
 
                     # background corrections
-                    d[i] -= d[i][:n_prebeam].mean()
+                    # d[i] -= d[i][:n_prebeam].mean()
 
                     # remove negative count values
-                    d[i][d[i]<0] = 0.
+                    # d[i][d[i]<0] = 0.
 
                     # delete prebeam entries
-                    d[i] = np.delete(d[i], np.arange(n_prebeam))
+                    # d[i] = np.delete(d[i], np.arange(n_prebeam))
                     
                 # check and fix 2018-2020 NQR prebeam error
-                d = self._fix_prebeam_offbyone(d)
+                # d = self._fix_prebeam_offbyone(d)
                 
-                if self.mode == '2h':
-                    d_alpha = self._fix_prebeam_offbyone(d_alpha)
+                # if self.mode == '2h':
+                    # d_alpha = self._fix_prebeam_offbyone(d_alpha)
                                                     
             # deadtime correction
             d = self._correct_deadtime(d, deadtime)
@@ -2226,7 +2191,8 @@ class bdata(mdata):
                 
             elif option == 'alpha_diffusion': # ------------------------------
                 try:
-                    asym = self._get_asym_alpha(d_alpha, d)
+                    # TODO: FIX THIS WITH BACKGROUND CORRECTIONS
+                    asym = [asy.get_alpha(d_alpha, d), asy.get_alpha_err(d_alpha, d)]
                 except UnboundLocalError as err:
                     if self.mode != '2h':
                         raise InputError('Run is not in 2h mode.')
@@ -2234,6 +2200,7 @@ class bdata(mdata):
             
             elif option == 'alpha_tagged': # ---------------------------------
                 try:
+                    # TODO: FIX THIS WITH BACKGROUND CORRECTIONS
                     asym = self._get_asym_alpha_tag(d_alpha, d)  
                 except UnboundLocalError as err:
                     if self.mode != '2h':
@@ -2516,6 +2483,25 @@ class bdata(mdata):
         # get time array    
         time = (np.arange(n)+0.5)*self._get_ppg('dwelltime')/1000
         
+        # get number prebeams
+        try: 
+            n_prebeam = int(self._get_ppg('prebeam'))
+        except KeyError:
+            pass
+        else:
+            
+            # NQR error
+            if self._is_prebeam_offbyone(): 
+                n_prebeam += 1
+
+            # prebin removal
+            if self.slr_rm_prebeam and n_prebeam > 0:
+                time = np.delete(time, n-np.arange(n_prebeam)-1)
+            
+            # prebeam shift
+            else:
+                time -= time[n_prebeam]
+
         # rebin time
         if rebin > 1:
             new_t_idx = np.arange(0, n, rebin)
