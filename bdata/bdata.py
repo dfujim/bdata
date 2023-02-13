@@ -3,6 +3,7 @@
 # Derek Fujimoto
 # July 2017
 
+import bdata as bd
 import numpy as np
 import pandas as pd
 import os, re
