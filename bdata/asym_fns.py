@@ -39,10 +39,12 @@ def get_4counter_err(Fp, Fn, Bp, Bn):
     r[r==-1] = np.nan
 
     # check for div by zero
-    Fp[Fp==0] = np.nan                  
-    Bp[Bp==0] = np.nan
-    Fn[Fn==0] = np.nan
-    Bn[Bn==0] = np.nan
+    # copy first: inputs may be read-only views (e.g. from DataFrame.values)
+    # and should not be modified in place for the caller
+    Fp = Fp.copy(); Fp[Fp==0] = np.nan
+    Bp = Bp.copy(); Bp[Bp==0] = np.nan
+    Fn = Fn.copy(); Fn[Fn==0] = np.nan
+    Bn = Bn.copy(); Bn[Bn==0] = np.nan
     
     # error in combined asymmetry
     asym_comb_err = r*np.sqrt(1/Bp + 1/Fp + 1/Bn + 1/Fn)/np.square(r+1)
